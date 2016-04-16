@@ -1,0 +1,16 @@
+{
+	"nick": "gobot",
+	"user": "gobot",
+	"server": "irc.server.net",
+	"port": 6667,
+	"channels": [ 
+		"#chan1",
+		"#channel2 key"
+	],
+	"debug": false,
+	"verbose": false,
+	"admins": {
+		"adminNick": "admin.host.name"
+	},
+	"commandPrefix": "!"
+}
