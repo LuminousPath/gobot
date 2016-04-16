@@ -21,7 +21,7 @@ type Bot struct {
 	irc                    *irc.Connection
 }
 
-func (bot *Bot) InitConnect() {
+func (bot *Bot) init() {
 	log.Println("Connecting...")
 
 	// connect
@@ -71,5 +71,5 @@ func main() {
 		log.Println("error: ", err)
 	}
 
-	bot.InitConnect()
+	bot.init()
 }
