@@ -34,14 +34,13 @@ func listen(bot *Bot) {
 		admin := bot.Admins[event.Nick] == event.Host
 
 		// default admin commands
-		go bot.adminCommands(p, cmd, channel, word, admin)
+		bot.adminCommands(p, cmd, channel, word, admin)
 
 		// will be ignorelist soon
 		if event.Nick == bot.irc.GetNick() {
 			log.Println("Ignored message from", event.Nick)
 		} else {
 			go hello.Run(&bot.irc, p, cmd, channel, word, admin)
-			go nude.Run(&bot.irc, p, cmd, channel, word, admin)
 		}
 	})
 }
