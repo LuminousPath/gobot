@@ -6,6 +6,7 @@ import (
 	"github.com/thoj/go-ircevent"
 	"log"
 	"os"
+	"time"
 )
 
 type Bot struct {
@@ -14,6 +15,8 @@ type Bot struct {
 	Server                 string
 	Port                   int
 	Channels               []string
+	FloodProtect           bool
+	FloodDelay             time.Duration
 	Debug                  bool
 	VerboseCallbackHandler bool
 	Admins                 map[string]string
@@ -21,7 +24,7 @@ type Bot struct {
 	irc                    *irc.Connection
 }
 
-func (bot *Bot) init() {
+func (bot *Bot) connect() {
 	log.Println("Connecting...")
 
 	// connect
@@ -33,15 +36,18 @@ func (bot *Bot) init() {
 		log.Println("Error:", err)
 	}
 
-	// to help debugging, if set in config
+	bot.irc.FloodProtect = bot.FloodProtect
+	bot.irc.FloodDelay = bot.FloodDelay
 	bot.irc.Debug = bot.Debug
 	bot.irc.VerboseCallbackHandler = bot.VerboseCallbackHandler
 
 	// join all channels in config
-	for _, channel := range bot.Channels {
-		log.Println(fmt.Sprintf("Joining %s", channel))
-		bot.irc.Join(channel)
-	}
+	bot.irc.AddCallback("001", func(e *irc.Event) {
+		for _, channel := range bot.Channels {
+			log.Println(fmt.Sprintf("Joining %s", channel))
+			bot.irc.Join(channel)
+		}
+	})
 
 	// log admins
 	for admin, hostname := range bot.Admins {
@@ -71,5 +77,5 @@ func main() {
 		log.Println("error: ", err)
 	}
 
-	bot.init()
+	bot.connect()
 }

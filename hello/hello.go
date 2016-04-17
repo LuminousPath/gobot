@@ -10,4 +10,6 @@ func Run(b **irc.Connection, p, cmd, channel string, word []string, admin bool) 
 	if word[0] == "hello" {
 		bot.Privmsg(channel, "world!")
 	}
+
+	return
 }

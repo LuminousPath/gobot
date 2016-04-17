@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mferrera/gobot/modules"
+	"github.com/mferrera/gobot/hello"
 	"github.com/thoj/go-ircevent"
 	"log"
 	"strings"
@@ -34,14 +34,14 @@ func listen(bot *Bot) {
 		admin := bot.Admins[event.Nick] == event.Host
 
 		// default admin commands
-		bot.adminCommands(p, cmd, channel, word, admin)
+		go bot.adminCommands(p, cmd, channel, word, admin)
 
-		passCon := &bot.irc
 		// will be ignorelist soon
 		if event.Nick == bot.irc.GetNick() {
 			log.Println("Ignored message from", event.Nick)
 		} else {
-			hello.Run(passCon, p, cmd, channel, word, admin)
+			go hello.Run(&bot.irc, p, cmd, channel, word, admin)
+			go nude.Run(&bot.irc, p, cmd, channel, word, admin)
 		}
 	})
 }
