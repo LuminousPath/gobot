@@ -3,24 +3,24 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/thoj/go-ircevent"
+	"github.com/mferrera/go-ircevent"
 	"log"
 	"os"
 	"time"
 )
 
 type Bot struct {
-	Nick                   string
-	User                   string
-	Server                 string
-	Port                   int
-	Channels               []string
-	FloodProtect           bool
-	FloodDelay             time.Duration
-	Debug                  bool
-	VerboseCallbackHandler bool
-	Admins                 map[string]string
-	CommandPrefix          string
+	Nick                   string            `json:"nick"`
+	User                   string            `json:"user"`
+	Server                 string            `json:"server"`
+	Port                   int               `json:"port"`
+	Channels               []string          `json:"channels"`
+	FloodProtect           bool              `json:"floodProtect"`
+	FloodDelay             time.Duration     `json:"floodDelay"`
+	Debug                  bool              `json:"debug"`
+	VerboseCallbackHandler bool              `json:"verbose"`
+	Admins                 map[string]string `json:"admins"`
+	CommandPrefix          string            `json:"commandPrefix"`
 	irc                    *irc.Connection
 }
 
@@ -66,13 +66,18 @@ func main() {
 	log.Println("Reading conf.json...")
 
 	// open & readconfig
-	file, _ := os.Open("conf.json")
+	file, err := os.Open("conf.json")
+	if err != nil {
+		log.Fatal("Problem reading config file. " +
+			"Make sure you renamed conf-example.json to conf.json " +
+			"and properly edited it.")
+	}
 	decoder := json.NewDecoder(file)
 
 	bot := Bot{}
 
 	// decode the json
-	err := decoder.Decode(&bot)
+	err = decoder.Decode(&bot)
 	if err != nil {
 		log.Println("error: ", err)
 	}

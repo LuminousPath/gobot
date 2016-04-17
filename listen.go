@@ -1,8 +1,9 @@
 package main
 
 import (
+	"github.com/mferrera/go-ircevent"
+	"github.com/mferrera/gobot/catfact"
 	"github.com/mferrera/gobot/hello"
-	"github.com/thoj/go-ircevent"
 	"log"
 	"strings"
 )
@@ -40,6 +41,7 @@ func listen(bot *Bot) {
 		if event.Nick == bot.irc.GetNick() {
 			log.Println("Ignored message from", event.Nick)
 		} else {
+			go catfact.Run(&bot.irc, p, cmd, channel, word, admin)
 			go hello.Run(&bot.irc, p, cmd, channel, word, admin)
 		}
 	})

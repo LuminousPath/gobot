@@ -4,13 +4,15 @@
 	"server": "irc.server.net",
 	"port": 6667,
 	"channels": [ 
-		"#chan1",
+		"#chan",
 		"#channel2 key"
 	],
 	"debug": false,
 	"verbose": false,
+	"floodProtect": true,
+	"floodDelay": 500,
 	"admins": {
-		"adminNick": "admin.host.name"
+		"adminNick": "vhost.or.host.name"
 	},
 	"commandPrefix": "!"
 }

@@ -1,10 +1,10 @@
 package hello
 
 import (
-	"github.com/thoj/go-ircevent"
+	"github.com/mferrera/go-ircevent"
 )
 
-func Run(b **irc.Connection, p, cmd, channel string, word []string, admin bool) {
+func Run(b **irc.Connection, p, cmd, channel string, word []string, admin bool) bool {
 	bot := *b
 	say := bot.Privmsg
 
@@ -12,5 +12,5 @@ func Run(b **irc.Connection, p, cmd, channel string, word []string, admin bool) 
 		say(channel, "world!")
 	}
 
-	return
+	return true
 }
