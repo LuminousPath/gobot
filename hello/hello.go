@@ -4,8 +4,7 @@ import (
 	"github.com/mferrera/go-ircevent"
 )
 
-func Run(b *irc.Connection, p, cmd, channel string, word []string, admin bool) {
-	bot := b
+func Run(bot *irc.Connection, p, cmd, channel string, word []string, admin bool) {
 	say := bot.Privmsg
 
 	if word[0] == "hello" {

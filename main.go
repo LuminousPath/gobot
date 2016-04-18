@@ -22,6 +22,7 @@ type Bot struct {
 	VerboseCallbackHandler bool              `json:"verbose"`
 	Admins                 map[string]string `json:"admins"`
 	CommandPrefix          string            `json:"commandPrefix"`
+	IgnoreList             map[string]string `json:"ignoreList"`
 	irc                    *irc.Connection
 }
 
@@ -30,19 +31,18 @@ func (bot *Bot) connect() {
 
 	// connect
 	bot.irc = irc.IRC(bot.Nick, bot.User)
-	err := bot.irc.Connect(fmt.Sprintf("%s:%d", bot.Server, bot.Port))
 
-	// log any errors
+	err := bot.irc.Connect(fmt.Sprintf("%s:%d", bot.Server, bot.Port))
 	if err != nil {
-		log.Println("Error:", err)
+		log.Panic("Error:", err)
 	}
 
-	// set irc.Connection values to equivalents
-	// in conf.json
+	// set values from conf.json to their irc.Connection equivalent
 	bot.irc.FloodProtect = bot.FloodProtect
 	bot.irc.FloodDelay = bot.FloodDelay
 	bot.irc.Debug = bot.Debug
 	bot.irc.VerboseCallbackHandler = bot.VerboseCallbackHandler
+	bot.IgnoreList[bot.irc.GetNick()] = "Ignore messages from self."
 
 	// join all channels in config
 	bot.irc.AddCallback("001", func(e *irc.Event) {
@@ -82,7 +82,7 @@ func main() {
 	// decode the json
 	err = decoder.Decode(&bot)
 	if err != nil {
-		log.Println("error: ", err)
+		log.Fatal("Error: ", err)
 	}
 
 	bot.connect()

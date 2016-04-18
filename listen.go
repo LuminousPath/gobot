@@ -25,27 +25,28 @@ func hasArgs(a []string) bool {
 // acts as event emitter to all plugins
 // for messages at least
 func listen(bot *Bot) {
-	bot.irc.AddCallback("PRIVMSG", func(event *irc.Event) {
+	bot.irc.AddCallback("PRIVMSG", func(e *irc.Event) {
 		// split event.Message to array
-		word := strings.Split(event.Message(), " ")
+		word := strings.Split(e.Message(), " ")
 
 		// the command possibly being issued
 		cmd := word[0]
 
 		// prefix from conf
 		p := bot.CommandPrefix
-		channel := event.Arguments[0]
+		channel := e.Arguments[0]
+		nick := e.Nick
 
-		// true or false if event.Nick@event.Host
+		// true or false if e.Nick@e.Host
 		// is admin@adminhost
-		admin := bot.Admins[event.Nick] == event.Host
+		admin := bot.Admins[e.Nick] == e.Host
 
 		// default admin commands
-		go bot.adminCommands(p, cmd, channel, word, admin)
+		go bot.adminCommands(p, cmd, nick, channel, word, admin)
 
-		// will be ignorelist soon
-		if event.Nick == bot.irc.GetNick() {
-			log.Println("Ignored message from", event.Nick)
+		// hostname/wildcard ignores not implemented yet
+		if _, ok := bot.IgnoreList[e.Nick]; ok {
+			log.Println("Ignored message from", e.Nick)
 		} else {
 			go catfact.Run(bot.irc, p, cmd, channel, word, admin)
 		}
