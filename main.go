@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mferrera/go-ircevent"
 	"log"
 	"os"
 	"time"
+
+	"github.com/mferrera/go-ircevent"
 )
 
 type Bot struct {
@@ -36,6 +37,8 @@ func (bot *Bot) connect() {
 		log.Println("Error:", err)
 	}
 
+	// set irc.Connection values to equivalents
+	// in conf.json
 	bot.irc.FloodProtect = bot.FloodProtect
 	bot.irc.FloodDelay = bot.FloodDelay
 	bot.irc.Debug = bot.Debug
@@ -65,7 +68,7 @@ func main() {
 	log.Println("Starting up...")
 	log.Println("Reading conf.json...")
 
-	// open & readconfig
+	// open & read config
 	file, err := os.Open("conf.json")
 	if err != nil {
 		log.Fatal("Problem reading config file. " +

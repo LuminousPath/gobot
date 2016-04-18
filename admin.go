@@ -5,6 +5,10 @@ import (
 )
 
 func (bot *Bot) adminCommands(p, cmd, channel string, word []string, admin bool) {
+	if !admin {
+		return
+	}
+
 	say := bot.irc.Privmsg
 	join := bot.irc.Join
 	part := bot.irc.Part
@@ -12,7 +16,7 @@ func (bot *Bot) adminCommands(p, cmd, channel string, word []string, admin bool)
 	action := bot.irc.Action
 	kick := bot.irc.Kick
 
-	if cmd == p+"say" && admin {
+	if cmd == p+"say" {
 		if hasArgs(word) && isChannel(word[1]) {
 			say(word[1], strings.Join(word[2:], " "))
 		} else if hasArgs(word) {
@@ -20,19 +24,19 @@ func (bot *Bot) adminCommands(p, cmd, channel string, word []string, admin bool)
 		}
 	}
 
-	if cmd == p+"pm" && admin {
+	if cmd == p+"pm" {
 		if hasArgs(word) {
 			say(word[1], strings.Join(word[1:], " "))
 		}
 	}
 
-	if cmd == p+"join" && admin {
+	if cmd == p+"join" {
 		if hasArgs(word) && isChannel(word[1]) {
 			join(word[1])
 		}
 	}
 
-	if cmd == p+"part" && admin {
+	if cmd == p+"part" {
 		if !hasArgs(word) {
 			part(channel)
 		} else if isChannel(word[1]) {
@@ -40,7 +44,7 @@ func (bot *Bot) adminCommands(p, cmd, channel string, word []string, admin bool)
 		}
 	}
 
-	if cmd == p+"notice" && admin {
+	if cmd == p+"notice" {
 		if hasArgs(word) && isChannel(word[1]) {
 			notice(word[1], strings.Join(word[2:], " "))
 		} else if hasArgs(word) {
@@ -48,7 +52,7 @@ func (bot *Bot) adminCommands(p, cmd, channel string, word []string, admin bool)
 		}
 	}
 
-	if cmd == p+"me" && admin {
+	if cmd == p+"me" {
 		if hasArgs(word) && !isChannel(word[1]) {
 			action(channel, strings.Join(word[1:], " "))
 		} else if hasArgs(word) && isChannel(word[1]) {
@@ -56,11 +60,13 @@ func (bot *Bot) adminCommands(p, cmd, channel string, word []string, admin bool)
 		}
 	}
 
-	if cmd == p+"kick" && admin {
+	if cmd == p+"kick" {
 		if hasArgs(word) && !isChannel(word[1]) {
 			kick(word[1], channel, strings.Join(word[2:], " "))
 		} else if hasArgs(word) && isChannel(word[1]) {
 			kick(word[2], word[1], strings.Join(word[3:], " "))
 		}
 	}
+
+	return
 }

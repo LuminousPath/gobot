@@ -2,9 +2,10 @@ package catfact
 
 import (
 	"encoding/json"
-	"github.com/mferrera/go-ircevent"
 	"log"
 	"net/http"
+
+	"github.com/mferrera/go-ircevent"
 )
 
 type CatFact struct {
@@ -22,6 +23,10 @@ func fact() string {
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		return "Couldn't reach API: " + resp.Status
+	}
+
 	decoder := json.NewDecoder(resp.Body)
 
 	cat := CatFact{}
@@ -38,14 +43,13 @@ func fact() string {
 	}
 }
 
-func Run(b **irc.Connection, p, cmd, channel string, word []string, admin bool) bool {
-	bot := *b
+func Run(b *irc.Connection, p, cmd, channel string, word []string, admin bool) {
+	bot := b
 	say := bot.Privmsg
-	var fact string = fact()
 
 	if word[0] == p+"cat" || word[0] == p+"catfact" {
-		say(channel, fact)
+		say(channel, fact())
 	}
 
-	return true
+	return
 }
