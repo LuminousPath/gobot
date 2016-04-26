@@ -6,6 +6,7 @@ import (
 
 	"github.com/mferrera/go-ircevent"
 	"github.com/mferrera/gobot/catfact"
+	"github.com/mferrera/gobot/ohayou"
 )
 
 // check if string looks like an irc channel
@@ -49,6 +50,7 @@ func listen(bot *Bot) {
 			log.Println("Ignored message from", e.Nick)
 		} else {
 			go catfact.Run(bot.irc, p, cmd, channel, word, admin)
+			go ohayou.Run(bot.irc, p, cmd, channel, word, admin)
 		}
 	})
 }

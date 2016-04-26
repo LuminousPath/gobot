@@ -14,5 +14,8 @@
 	"admins": {
 		"adminNick": "vhost.or.host.name"
 	},
-	"commandPrefix": "!"
+	"commandPrefix": "!",
+	"ignoreList": {
+		"spammerNick": "spams the bot often"
+	}
 }

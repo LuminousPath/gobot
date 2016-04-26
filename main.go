@@ -23,6 +23,7 @@ type Bot struct {
 	Admins                 map[string]string `json:"admins"`
 	CommandPrefix          string            `json:"commandPrefix"`
 	IgnoreList             map[string]string `json:"ignoreList"`
+	DBAddress              string            `json:"dbAddress"`
 	irc                    *irc.Connection
 }
 
