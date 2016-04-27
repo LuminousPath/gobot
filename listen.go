@@ -45,12 +45,18 @@ func listen(bot *Bot) {
 		// default admin commands
 		go bot.adminCommands(p, cmd, nick, channel, word, admin)
 
+		// this ignores all PMs to the bot
+		// TODO: Make this optional or something?
+		if channel == bot.irc.GetNick() {
+			return
+		}
+
 		// hostname/wildcard ignores not implemented yet
 		if _, ok := bot.IgnoreList[e.Nick]; ok {
 			log.Println("Ignored message from", e.Nick)
 		} else {
-			go catfact.Run(bot.irc, p, cmd, channel, word, admin)
-			go ohayou.Run(bot.irc, p, cmd, channel, word, admin)
+			go catfact.Run(bot.irc, p, cmd, channel, word)
+			go ohayou.Run(bot.irc, p, cmd, channel, nick, word, admin)
 		}
 	})
 }

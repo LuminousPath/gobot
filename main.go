@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"time"
 
@@ -85,6 +86,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Error: ", err)
 	}
+
+	rand.Seed(time.Now().UTC().UnixNano())
 
 	bot.connect()
 }

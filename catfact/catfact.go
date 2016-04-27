@@ -43,7 +43,7 @@ func fact() string {
 	}
 }
 
-func Run(bot *irc.Connection, p, cmd, channel string, word []string, admin bool) {
+func Run(bot *irc.Connection, p, cmd, channel string, word []string) {
 	say := bot.Privmsg
 
 	if word[0] == p+"cat" || word[0] == p+"catfact" {
