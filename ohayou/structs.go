@@ -6,11 +6,11 @@ type User struct {
 	Username      string
 	Last          time.Time
 	Ohayous       int
-	CumOhayous    int
+	CumOhayous    int `bson:"cumOhayous"`
 	Add           int
-	TimesOhayoued int
+	TimesOhayoued int `bson:"timesOhayoued"`
 	Items         map[string]int
-	ItemMultiply  map[string]int
+	ItemMultiply  map[string]int `bson:"itemMultiply"`
 }
 
 type Item struct {

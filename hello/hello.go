@@ -7,7 +7,8 @@ import (
 func Run(bot *irc.Connection, p, cmd, channel string, word []string, admin bool) {
 	say := bot.Privmsg
 
-	if word[0] == "hello" {
+	// cmd == word[0]
+	if cmd == "hello" {
 		say(channel, "world!")
 	}
 
