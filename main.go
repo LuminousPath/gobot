@@ -66,6 +66,10 @@ func (bot *Bot) connect() {
 	bot.irc.Loop()
 }
 
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
+
 func main() {
 	log.Println("Starting up...")
 	log.Println("Reading conf.json...")
@@ -86,8 +90,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Error: ", err)
 	}
-
-	rand.Seed(time.Now().UTC().UnixNano())
 
 	bot.connect()
 }

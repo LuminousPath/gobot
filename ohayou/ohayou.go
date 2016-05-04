@@ -2,8 +2,11 @@ package ohayou
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/mferrera/go-ircevent"
 )
@@ -20,9 +23,10 @@ func randNum(min, max int) int {
 	return min + rand.Intn(max-min)
 }
 
+// main function that distributes ohayous
 func newOhayou(nick string) string {
 	adj := [11]string{"Great", "Superb", "Fantastic", "Amazing", "Marvelous", "Stunning", "Splendid", "Exquisite", "Impressive", "Outstanding", "Wonderful"}
-	ohayous := randNum(0, 6)
+	ohayous := randNum(0, 7)
 
 	typeResponse := ""
 	switch ohayous {
@@ -36,8 +40,32 @@ func newOhayou(nick string) string {
 		typeResponse = "You get " + strconv.Itoa(ohayous) + " ohayous!"
 	}
 
-	return fmt.Sprintf("%s ohayou %s!!! %s You get %d ohayous.",
-		adj[randNum(0, 11)], nick, typeResponse, ohayous)
+	// get their data
+	data := getUser(strings.ToLower(nick))
+
+	t := time.Now()
+	est, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Println("err: ", err.Error())
+	}
+
+	// dont allow ohayou if they have ohayou'd today
+	if data.Last.Format("20060102") >= t.In(est).Format("20060102") {
+		return fmt.Sprintf("You already got your ohayou ration today, "+
+			"%s. If you'd like to ohayou again, you can purchase another "+
+			".ohayou for $5.00 USD.", nick)
+	}
+
+	if data.TimesOhayoued == 0 {
+		newUser(strings.ToLower(nick), ohayous)
+		return fmt.Sprintf("Congratulations on your first ohayou %s!!! "+
+			"%s Type .ohayouhelp if you don't know what this is.",
+			nick, typeResponse)
+	} else {
+		totalOhayous := saveOhayous(data, ohayous)
+		return fmt.Sprintf("%s ohayou %s!!! %s You have %d ohayous.",
+			adj[randNum(0, 11)], nick, typeResponse, totalOhayous)
+	}
 }
 
 func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin bool) {
@@ -50,13 +78,18 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 
 	// respond to channel with how many ohayous X has
 	if cmd == p+"ohayou" && hasArgs(word) {
-		data := getUser(word[1])
-		say(channel, fmt.Sprintf("%s has %d ohayous.", data.Username, data.Ohayous))
+		data := getUser(strings.ToLower(word[1]))
+		if data.Username != "" {
+			say(channel, fmt.Sprintf("%s has %d ohayous.", word[1], data.Ohayous))
+		} else {
+			say(channel, word[1]+" hasn't ohayoued yet!")
+
+		}
 	}
 
 	// respond to nick with their items and quantity of each item
 	if cmd == p+"inventory" {
-		data := getUser(nick)
+		data := getUser(strings.ToLower(nick))
 		inv := "You have "
 
 		for item, qty := range data.Items {
@@ -69,6 +102,4 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 
 		say(nick, inv)
 	}
-
-	return
 }
