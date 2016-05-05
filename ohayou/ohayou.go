@@ -20,14 +20,15 @@ func hasArgs(a []string) bool {
 }
 
 func randNum(min, max int) int {
-	return min + rand.Intn(max-min)
+	return min + rand.Intn(max-min+1)
 }
 
 // main function that distributes ohayous
 func newOhayou(nick string) string {
-	adj := [11]string{"Great", "Superb", "Fantastic", "Amazing", "Marvelous", "Stunning", "Splendid", "Exquisite", "Impressive", "Outstanding", "Wonderful"}
+	adj := [11]string{"Great", "Superb", "Fantastic", "Amazing", "Marvelous",
+		"Stunning", "Splendid", "Exquisite", "Impressive", "Outstanding", "Wonderful"}
 
-	ohayous := randNum(0, 7)
+	ohayous := randNum(0, 6)
 	var typeResponse string
 
 	switch ohayous {
@@ -38,7 +39,7 @@ func newOhayou(nick string) string {
 	case 6:
 		typeResponse = "Wow! You get 6 ohayous!"
 	default:
-		typeResponse = "You get " + strconv.Itoa(ohayous) + " ohayous!"
+		typeResponse = fmt.Sprintf("You get %d ohayous!", ohayous)
 	}
 
 	// get their data
@@ -52,32 +53,30 @@ func newOhayou(nick string) string {
 
 	// dont allow ohayou if they have ohayou'd today
 	if user.Last.Format("20060102") >= t.In(est).Format("20060102") {
-		return fmt.Sprintf("You already got your ohayou ration today, "+
-			"%s.", nick)
-	}
-
-	if user.TimesOhayoued == 0 {
+		return "You already got your ohayou ration today, " + nick
+	} else if user.TimesOhayoued == 0 {
 		newUser(strings.ToLower(nick), ohayous)
-		return fmt.Sprintf("Congratulations on your first ohayou %s!!! "+
-			"%s Type .ohayouhelp if you don't know what this is.",
-			nick, typeResponse)
+
+		return "Congratulations on your first ohayou " + nick + "!!! " +
+			typeResponse + " Type .ohayouhelp if you don't know what this is."
 	} else {
 		var itemOhayous int
 
 		for item, amt := range user.Items {
-			itemMult := 1
+			itemMultiplier := 1
 
-			// if an item is multiplied by another item
+			// check if user has item(s) that multiply another item
 			if user.ItemMultiply[item] != 0 {
-				itemMult = user.ItemMultiply[item]
+				itemMultiplier = user.ItemMultiply[item]
 			}
 
 			itemData := getItem(item)
-			itemOhayous += (itemData.Add * amt) * itemMult
+			itemOhayous += (itemData.Add * amt) * itemMultiplier
 		}
 
 		totalOhayous := user.Ohayous + ohayous + itemOhayous
 
+		// store it
 		saveOhayous(user, totalOhayous)
 
 		if itemOhayous == 0 {
@@ -86,7 +85,8 @@ func newOhayou(nick string) string {
 		} else {
 			return fmt.Sprintf("%s ohayou %s!!! %s Your items increased "+
 				"that to %d. You have %d ohayous.",
-				adj[randNum(0, 11)], nick, typeResponse, itemOhayous, totalOhayous)
+				adj[randNum(0, 11)], nick, typeResponse,
+				ohayous+itemOhayous, totalOhayous)
 		}
 	}
 }
@@ -101,24 +101,61 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 
 	// respond to channel with how many ohayous X has
 	if cmd == p+"ohayou" && hasArgs(word) {
-		data := getUser(strings.ToLower(word[1]))
-		if data.Username != "" {
-			say(channel, fmt.Sprintf("%s has %d ohayous.", word[1], data.Ohayous))
+		user := getUser(strings.ToLower(word[1]))
+
+		if user.Username != "" {
+			say(channel, fmt.Sprintf("%s has %d ohayous.", word[1], user.Ohayous))
 		} else {
 			say(channel, word[1]+" hasn't ohayoued yet!")
 		}
 	}
 
-	if cmd == p+"items" {
+	if cmd == p+"buy" && !hasArgs(word) {
+		say(channel, "Usage: "+p+"buy <item> will buy you one <item>."+
+			p+"buy <item> 3 will buy you 3 of <item>, if you can afford it.")
+	} else if cmd == p+"buy" && hasArgs(word) {
+		// if a purchase quantity is given
+		if len(word) > 2 {
+			// try to convert it to an integer
+			amt, err := strconv.Atoi(word[2])
+			if err != nil {
+				say(channel, "You didn't give a valid quantity. Usage: "+p+
+					"buy <item> will buy you one <item>. "+p+"buy <item>"+
+					" 3 will buy you 3 of <item>, if you can afford it.")
+			} else {
+				say(channel, buyItem(strings.ToLower(nick),
+					strings.ToLower(word[1]),
+					amt))
+			}
+		} else {
+			say(channel, buyItem(strings.ToLower(nick),
+				strings.ToLower(word[1]),
+				1))
+		}
+	}
+
+	// just shows how to use .items and lists item categories
+	if cmd == p+"items" && !hasArgs(word) {
 		say(channel, "Type "+p+"item <category> to get a list of items by "+
-			"category. Categories: "+getCategories())
+			"category. Categories: "+listCategories())
+	}
+
+	// PMs all items in a category
+	if cmd == p+"items" && hasArgs(word) {
+		data := getCategory(strings.ToLower(word[1]))
+
+		for _, item := range data {
+			say(nick, item)
+		}
 	}
 
 	// returns information about an item
 	if cmd == p+"item" && hasArgs(word) {
 		data := getItem(strings.ToLower(word[1]))
+
 		if data.Name != "" {
-			say(channel, fmt.Sprintf("%s: %s - Price: %d ohayous", data.Name, data.Desc, data.Price))
+			say(channel, fmt.Sprintf("%s: %s - Price: %d ohayous",
+				data.Name, data.Desc, data.Price))
 		} else {
 			say(channel, "I don't carry that.")
 		}
@@ -126,17 +163,25 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 
 	// respond to nick with their items and quantity of each item
 	if cmd == p+"inventory" {
-		data := getUser(strings.ToLower(nick))
-		inv := "You have "
+		user := getUser(strings.ToLower(nick))
 
-		for item, qty := range data.Items {
-			if qty > 1 {
-				inv += strconv.Itoa(qty) + " " + item + "s "
-			} else {
-				inv += strconv.Itoa(qty) + " " + item + " "
+		if user.TimesOhayoued == 0 {
+			say(channel, "You haven't ohayoued yet! Type .ohayou to "+
+				"get your first ration.")
+		} else if len(user.Items) > 0 {
+			inv := "You have "
+
+			for item, amt := range user.Items {
+				if amt > 1 {
+					inv += fmt.Sprintf("%d %ss ", amt, item)
+				} else {
+					inv += fmt.Sprintf("%d %s ", amt, item)
+				}
 			}
-		}
 
-		say(nick, inv)
+			say(nick, inv)
+		} else {
+			say(nick, "You don't have any items yet. Keep saving!")
+		}
 	}
 }

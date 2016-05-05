@@ -19,7 +19,7 @@ type Item struct {
 	Price      int
 	Add        int
 	Multiply   int
-	Multiplies bool
+	Multiplies string
 	Defense    int
 	Limit      int
 	Useable    bool
