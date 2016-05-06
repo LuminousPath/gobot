@@ -11,6 +11,8 @@ import (
 	"github.com/mferrera/go-ircevent"
 )
 
+var p string
+
 func hasArgs(a []string) bool {
 	if len(a) > 1 {
 		return true
@@ -91,8 +93,17 @@ func newOhayou(nick string) string {
 	}
 }
 
-func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin bool) {
+func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, admin bool) {
 	say := bot.Privmsg
+	// make the prefix global
+	p = prefix
+	var argOne, argTwo string
+	lowNick := strings.ToLower(nick)
+	if len(word) > 1 {
+		argOne = strings.ToLower(word[1])
+	} else if len(word) > 2 {
+		argTwo = strings.ToLower(word[2])
+	}
 
 	// main command to acquire new ohayous
 	if cmd == p+"ohayou" && !hasArgs(word) {
@@ -101,7 +112,7 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 
 	// respond to channel with how many ohayous X has
 	if cmd == p+"ohayou" && hasArgs(word) {
-		user := getUser(strings.ToLower(word[1]))
+		user := getUser(lowNick)
 
 		if user.Username != "" {
 			say(channel, fmt.Sprintf("%s has %d ohayous.", word[1], user.Ohayous))
@@ -123,14 +134,10 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 					"buy <item> will buy you one <item>. "+p+"buy <item>"+
 					" 3 will buy you 3 of <item>, if you can afford it.")
 			} else {
-				say(channel, buyItem(strings.ToLower(nick),
-					strings.ToLower(word[1]),
-					amt))
+				say(channel, buyItem(lowNick, argOne, amt))
 			}
 		} else {
-			say(channel, buyItem(strings.ToLower(nick),
-				strings.ToLower(word[1]),
-				1))
+			say(channel, buyItem(lowNick, argOne, 1))
 		}
 	}
 
@@ -142,7 +149,7 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 
 	// PMs all items in a category
 	if cmd == p+"items" && hasArgs(word) {
-		data := getCategory(strings.ToLower(word[1]))
+		data := getCategory(argOne)
 
 		for _, item := range data {
 			say(nick, item)
@@ -151,7 +158,7 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 
 	// returns information about an item
 	if cmd == p+"item" && hasArgs(word) {
-		data := getItem(strings.ToLower(word[1]))
+		data := getItem(argOne)
 
 		if data.Name != "" {
 			say(channel, fmt.Sprintf("%s: %s - Price: %d ohayous",
@@ -161,9 +168,21 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 		}
 	}
 
+	if cmd == p+"use" && !hasArgs(word) {
+		say(channel, "Type "+p+"use <item> to use an item. Type "+p+"inventory to "+
+			"see what items you have, or "+p+"items to see what items you can "+
+			p+"buy.")
+	} else if cmd == p+"use" && hasArgs(word) {
+		if len(word) > 2 {
+			say(channel, useItem(lowNick, nick, argOne, argTwo))
+		} else {
+			say(channel, useItem(lowNick, nick, argOne, "somebody"))
+		}
+	}
+
 	// respond to nick with their items and quantity of each item
 	if cmd == p+"inventory" {
-		user := getUser(strings.ToLower(nick))
+		user := getUser(lowNick)
 
 		if user.TimesOhayoued == 0 {
 			say(channel, "You haven't ohayoued yet! Type .ohayou to "+
@@ -172,7 +191,9 @@ func Run(bot *irc.Connection, p, cmd, channel, nick string, word []string, admin
 			inv := "You have "
 
 			for item, amt := range user.Items {
-				if amt > 1 {
+				if amt == 0 {
+					continue
+				} else if amt > 1 {
 					inv += fmt.Sprintf("%d %ss ", amt, item)
 				} else {
 					inv += fmt.Sprintf("%d %s ", amt, item)

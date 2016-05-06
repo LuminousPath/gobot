@@ -14,17 +14,18 @@ type User struct {
 }
 
 type Item struct {
-	Name       string
-	Desc       string
-	Price      int
-	Add        int
-	Multiply   int
-	Multiplies string
-	Defense    int
-	Limit      int
-	Useable    bool
-	Consume    bool
-	Effect     string
-	Purchase   bool
-	Category   string
+	Name        string
+	Desc        string
+	Price       int
+	Add         int
+	Multiply    int
+	Multiplies  string
+	Defense     int
+	Limit       int
+	Useable     bool
+	Consume     bool
+	Effect      string
+	HasFunction string `bson:"hasFunction"`
+	Purchase    bool
+	Category    string
 }

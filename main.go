@@ -60,7 +60,7 @@ func (bot *Bot) connect() {
 	}
 
 	// add listener callback
-	listen(bot)
+	bot.listen()
 
 	// stay connected
 	bot.irc.Loop()

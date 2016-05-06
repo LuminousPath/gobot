@@ -25,7 +25,7 @@ func hasArgs(a []string) bool {
 
 // acts as event emitter to all plugins
 // for messages at least
-func listen(bot *Bot) {
+func (bot *Bot) listen() {
 	bot.irc.AddCallback("PRIVMSG", func(e *irc.Event) {
 		// split event.Message to array
 		word := strings.Split(e.Message(), " ")
@@ -51,7 +51,7 @@ func listen(bot *Bot) {
 			return
 		}
 
-		// hostname/wildcard ignores not implemented yet
+		// TODO: hostname/wildcard ignores not implemented yet
 		if _, ok := bot.IgnoreList[e.Nick]; ok {
 			log.Println("Ignored message from", e.Nick)
 		} else {
