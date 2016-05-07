@@ -134,7 +134,31 @@ func saveItem(user *User, item string, amt int) {
 
 	save := bson.M{"$inc": bson.M{"items." + item: amt}}
 
-	err = q.Update(bson.M{"username": item}, save)
+	err = q.Update(bson.M{"username": user.Username}, save)
+	if err != nil {
+		log.Println("saveItem: " + err.Error())
+	}
+}
+
+func setLastUsed(user *User, item string) {
+	session, err := mgo.Dial(dbAddress)
+	if err != nil {
+		panic(err)
+	}
+	defer session.Close()
+
+	t := time.Now()
+	est, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Println("err: ", err.Error())
+	}
+
+	session.SetMode(mgo.Monotonic, true)
+	q := session.DB(dbName).C(ohyCol)
+
+	save := bson.M{"$set": bson.M{"lastUsed." + item: t.In(est)}}
+
+	err = q.Update(bson.M{"username": user.Username}, save)
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}
@@ -189,4 +213,22 @@ func getCategory(name string) []string {
 	}
 
 	return items
+}
+
+func resetLast(user *User) {
+	session, err := mgo.Dial(dbAddress)
+	if err != nil {
+		panic(err)
+	}
+	defer session.Close()
+
+	session.SetMode(mgo.Monotonic, true)
+	q := session.DB(dbName).C(ohyCol)
+
+	save := bson.M{"$set": bson.M{"last": 0}}
+
+	err = q.Update(bson.M{"username": user.Username}, save)
+	if err != nil {
+		log.Println("saveItem: " + err.Error())
+	}
 }

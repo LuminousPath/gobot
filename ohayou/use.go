@@ -31,17 +31,20 @@ func useItem(nick, nickRaw, itemName, useOn string) string {
 	}
 
 	if item.Consume {
-		consumeItem(nick, item.Name)
+		go consumeItem(user, item.Name)
 	}
+
+	var extra string
 
 	if item.HasFunction != "" {
-		// uh oh
+		doIt := itemFuncs[item.HasFunction]
+		extra = doIt(user, item.Name)
 	}
 
-	return nickRaw + " " + strings.Replace(item.Effect, "%s", useOn, -1)
+	return nickRaw + " " + strings.Replace(item.Effect, "%s", useOn, -1) + extra
 }
 
-func consumeItem(nick, itemName string) {
+func consumeItem(user *User, itemName string) {
 	session, err := mgo.Dial(dbAddress)
 	if err != nil {
 		panic(err)
@@ -54,7 +57,7 @@ func consumeItem(nick, itemName string) {
 	save := bson.M{"$inc": bson.M{
 		"items." + itemName: -1}}
 
-	err = q.Update(bson.M{"username": nick}, save)
+	err = q.Update(bson.M{"username": user.Username}, save)
 	if err != nil {
 		log.Println("consumeItem: " + err.Error())
 	}

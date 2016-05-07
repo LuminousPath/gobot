@@ -10,7 +10,8 @@ type User struct {
 	Add           int
 	TimesOhayoued int `bson:"timesOhayoued"`
 	Items         map[string]int
-	ItemMultiply  map[string]int `bson:"itemMultiply"`
+	ItemMultiply  map[string]int       `bson:"itemMultiply"`
+	LastUsed      map[string]time.Time `bson:"lastUsed"`
 }
 
 type Item struct {

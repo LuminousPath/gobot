@@ -11,6 +11,7 @@ import (
 	"github.com/mferrera/go-ircevent"
 )
 
+// globalize the command prefix from bot config
 var p string
 
 func hasArgs(a []string) bool {
@@ -101,7 +102,8 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 	lowNick := strings.ToLower(nick)
 	if len(word) > 1 {
 		argOne = strings.ToLower(word[1])
-	} else if len(word) > 2 {
+	}
+	if len(word) > 2 {
 		argTwo = strings.ToLower(word[2])
 	}
 
