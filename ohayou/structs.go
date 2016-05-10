@@ -1,6 +1,8 @@
 package ohayou
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	Username      string
@@ -29,4 +31,9 @@ type Item struct {
 	HasFunction string `bson:"hasFunction"`
 	Purchase    bool
 	Category    string
+}
+
+type TimeZone struct {
+	l *time.Location
+	e error
 }

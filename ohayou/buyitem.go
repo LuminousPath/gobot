@@ -9,61 +9,53 @@ import (
 )
 
 func buyItem(nick, item string, amt int) string {
-	user := getUser(nick)
-	itemData := getItem(item)
-
-	if user.Username == "" {
+	if !getUser(nick) {
 		return "You haven't ohayoued yet! Type " + p + "ohayou to get your first ration."
 	}
 
 	// item not found
-	if itemData.Name == "" {
+	if !getItem(item) {
 		return "I don't have that in stock."
 	}
 
 	// item cannot be purchased
-	if !itemData.Purchase {
+	if !ITEM.Purchase {
 		return "That's not for sale."
 	}
 
-	if user.Ohayous < itemData.Price*amt {
+	if USER.Ohayous < ITEM.Price*amt {
 		return "You can't afford that."
 	}
 
 	// user is already at the limit for that item
-	if itemData.Limit > 0 && user.Items[item] >= itemData.Limit {
+	if ITEM.Limit > 0 && USER.Items[item] >= ITEM.Limit {
 		return fmt.Sprintf("You can't purchase any more of that. You can only have"+
-			" %d %s", itemData.Limit, item)
+			" %d %s", ITEM.Limit, item)
 	}
 
 	// this purchase (presumeably batch purchase) would push them over the limit
-	if itemData.Limit > 0 && user.Items[item]+amt > itemData.Limit {
+	if ITEM.Limit > 0 && USER.Items[item]+amt > ITEM.Limit {
 		return fmt.Sprintf("You can't purchase that much. You can only have"+
-			" %d %s", itemData.Limit, item)
+			" %d %s", ITEM.Limit, item)
 	}
 
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(ohyCol)
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
 
 	save := bson.M{}
 
 	// check if this item multiplies another item
-	if itemData.Multiplies != "" {
+	if ITEM.Multiplies != "" {
 		save = bson.M{"$inc": bson.M{
-			"ohayous":                             -itemData.Price * amt,
-			"add":                                 itemData.Add * amt,
-			"items." + item:                       amt,
-			"itemMultiply." + itemData.Multiplies: itemData.Multiply}}
+			"ohayous":                         -ITEM.Price * amt,
+			"add":                             ITEM.Add * amt,
+			"items." + item:                   amt,
+			"itemMultiply." + ITEM.Multiplies: ITEM.Multiply}}
 	} else {
 		save = bson.M{"$inc": bson.M{
-			"ohayous":       -itemData.Price * amt,
-			"add":           itemData.Add * amt,
+			"ohayous":       -ITEM.Price * amt,
+			"add":           ITEM.Add * amt,
 			"items." + item: amt}}
 	}
 
@@ -75,10 +67,10 @@ func buyItem(nick, item string, amt int) string {
 	if amt > 1 {
 		return fmt.Sprintf("You purchased %d %ss for %d ohayous. "+
 			"You have %d ohayous left.",
-			amt, item, itemData.Price*amt, user.Ohayous-(itemData.Price*amt))
+			amt, item, ITEM.Price*amt, USER.Ohayous-(ITEM.Price*amt))
 	} else {
 		return fmt.Sprintf("You purchased %d %s for %d ohayous. "+
 			"You have %d ohayous left.",
-			amt, item, itemData.Price*amt, user.Ohayous-(itemData.Price*amt))
+			amt, item, ITEM.Price*amt, USER.Ohayous-(ITEM.Price*amt))
 	}
 }

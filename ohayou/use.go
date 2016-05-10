@@ -9,55 +9,45 @@ import (
 )
 
 func useItem(nick, nickRaw, itemName, useOn string) string {
-	user := getUser(nick)
-	item := getItem(itemName)
-
-	if user.TimesOhayoued == 0 {
+	if !getUser(nick) {
 		return "You don't have any items because you've never ohayoued!" +
 			" Get your first ration by typing " + p + "ohayou"
 	}
 
-	if item.Name == "" {
+	if !getItem(itemName) {
 		return itemName + " isn't an item. Type " + p + "items to look and what's" +
 			" available, and " + p + "inventory to see what items you have."
 	}
 
-	if user.Items[item.Name] == 0 {
+	if USER.Items[ITEM.Name] == 0 {
 		return "You don't any of that."
 	}
 
-	if !item.Useable {
-		return item.Name + " is passive. It can't be used"
+	if !ITEM.Useable {
+		return ITEM.Name + " is passive. It can't be used"
 	}
 
-	if item.Consume {
-		go consumeItem(user, item.Name)
+	if ITEM.Consume {
+		go consumeItem(USER, ITEM.Name)
 	}
 
-	var extra string
-
-	if item.HasFunction != "" {
-		doIt := itemFuncs[item.HasFunction]
-		extra = doIt(user, item.Name)
+	if ITEM.HasFunction != "" {
+		doIt := itemFuncs[ITEM.HasFunction]
+		extra = doIt(USER, ITEM.Name)
 	}
 
-	return nickRaw + " " + strings.Replace(item.Effect, "%s", useOn, -1) + extra
+	return nickRaw + " " + strings.Replace(ITEM.Effect, "%s", useOn, -1) + extra
 }
 
 func consumeItem(user *User, itemName string) {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(ohyCol)
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
 
 	save := bson.M{"$inc": bson.M{
 		"items." + itemName: -1}}
 
-	err = q.Update(bson.M{"username": user.Username}, save)
+	err = q.Update(bson.M{"username": USER.Username}, save)
 	if err != nil {
 		log.Println("consumeItem: " + err.Error())
 	}

@@ -2,23 +2,78 @@ package ohayou
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mferrera/go-ircevent"
+	"gopkg.in/mgo.v2"
 )
 
-// globalize the command prefix from bot config
-var p string
+// db consts
+const (
+	dbAddress string = "localhost"
+	dbName    string = "ircbot"
+	ohyCol    string = "ohayou"
+	itemCol   string = "items"
+)
+
+// globalize things that will be used repeatedly throughout the package
+var (
+	p              string
+	eventsStarted  bool
+	argOne         string
+	argTwo         string
+	typeResponse   string
+	ohayous        int
+	itemOhayous    int
+	itemMultiplier int = 1
+	totalOhayous   int
+	lowNick        string
+	inv            string = "You have "
+	extra          string
+	err            error
+	itemsInCat     []string
+	t              time.Time
+	est            *time.Location
+
+	adj = [11]string{"Great", "Superb", "Fantastic", "Amazing", "Marvelous",
+		"Stunning", "Splendid", "Exquisite", "Impressive", "Outstanding", "Wonderful"}
+
+	// DB vars
+	session   *mgo.Session
+	dbInitErr error
+
+	USER *User
+	ITEM *Item
+)
+
+func init() {
+	// set timezone
+	setEst, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		panic("Could not load TimeZone file")
+	}
+	est = setEst
+
+	// set up DB session
+	session, dbInitErr = mgo.Dial(dbAddress)
+	if dbInitErr != nil {
+		panic(dbInitErr)
+	}
+	session.SetMode(mgo.Monotonic, true)
+}
+
+func clearGlobals() {
+	inv = "You have "
+	extra = ""
+}
 
 func hasArgs(a []string) bool {
 	if len(a) > 1 {
 		return true
 	}
-
 	return false
 }
 
@@ -28,11 +83,7 @@ func randNum(min, max int) int {
 
 // main function that distributes ohayous
 func newOhayou(nick string) string {
-	adj := [11]string{"Great", "Superb", "Fantastic", "Amazing", "Marvelous",
-		"Stunning", "Splendid", "Exquisite", "Impressive", "Outstanding", "Wonderful"}
-
-	ohayous := randNum(0, 6)
-	var typeResponse string
+	ohayous = randNum(0, 6)
 
 	switch ohayous {
 	case 0:
@@ -46,41 +97,31 @@ func newOhayou(nick string) string {
 	}
 
 	// get their data
-	user := getUser(strings.ToLower(nick))
-
-	t := time.Now()
-	est, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		log.Println("err: ", err.Error())
-	}
+	t = time.Now()
 
 	// dont allow ohayou if they have ohayou'd today
-	if user.Last.Format("20060102") >= t.In(est).Format("20060102") {
-		return "You already got your ohayou ration today, " + nick
-	} else if user.TimesOhayoued == 0 {
-		newUser(strings.ToLower(nick), ohayous)
+	if !getUser(lowNick) {
+		newUser(lowNick, ohayous)
 
 		return "Congratulations on your first ohayou " + nick + "!!! " +
 			typeResponse + " Type .ohayouhelp if you don't know what this is."
+	} else if USER.Last.Format("20060102") >= t.In(est).Format("20060102") {
+		return "You already got your ohayou ration today, " + nick
 	} else {
-		var itemOhayous int
-
-		for item, amt := range user.Items {
-			itemMultiplier := 1
-
+		for itm, amt := range USER.Items {
 			// check if user has item(s) that multiply another item
-			if user.ItemMultiply[item] != 0 {
-				itemMultiplier = user.ItemMultiply[item]
+			if USER.ItemMultiply[itm] != 0 {
+				itemMultiplier = USER.ItemMultiply[itm]
 			}
 
-			itemData := getItem(item)
-			itemOhayous += (itemData.Add * amt) * itemMultiplier
+			getItem(itm)
+			itemOhayous += (ITEM.Add * amt) * itemMultiplier
 		}
 
-		totalOhayous := user.Ohayous + ohayous + itemOhayous
+		totalOhayous = USER.Ohayous + ohayous + itemOhayous
 
 		// store it
-		saveOhayous(user, totalOhayous)
+		saveOhayous(USER, totalOhayous)
 
 		if itemOhayous == 0 {
 			return fmt.Sprintf("%s ohayou %s!!! %s You have %d ohayous.",
@@ -98,13 +139,18 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 	say := bot.Privmsg
 	// make the prefix global
 	p = prefix
-	var argOne, argTwo string
-	lowNick := strings.ToLower(nick)
+	lowNick = strings.ToLower(nick)
 	if len(word) > 1 {
 		argOne = strings.ToLower(word[1])
 	}
 	if len(word) > 2 {
 		argTwo = strings.ToLower(word[2])
+	}
+
+	// check if events have started, if not, start them and set it so
+	if !eventsStarted {
+		startEvents(bot)
+		eventsStarted = true
 	}
 
 	// main command to acquire new ohayous
@@ -114,12 +160,10 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 
 	// respond to channel with how many ohayous X has
 	if cmd == p+"ohayou" && hasArgs(word) {
-		user := getUser(lowNick)
-
-		if user.Username != "" {
-			say(channel, fmt.Sprintf("%s has %d ohayous.", word[1], user.Ohayous))
+		if getUser(argOne) {
+			say(channel, fmt.Sprintf("%s has %d ohayous.", word[1], USER.Ohayous))
 		} else {
-			say(channel, word[1]+" hasn't ohayoued yet!")
+			say(channel, argOne+" hasn't ohayoued yet!")
 		}
 	}
 
@@ -130,7 +174,7 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 		// if a purchase quantity is given
 		if len(word) > 2 {
 			// try to convert it to an integer
-			amt, err := strconv.Atoi(word[2])
+			amt, err := strconv.Atoi(argTwo)
 			if err != nil {
 				say(channel, "You didn't give a valid quantity. Usage: "+p+
 					"buy <item> will buy you one <item>. "+p+"buy <item>"+
@@ -151,20 +195,18 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 
 	// PMs all items in a category
 	if cmd == p+"items" && hasArgs(word) {
-		data := getCategory(argOne)
+		itemsInCat = getCategory(argOne)
 
-		for _, item := range data {
-			say(nick, item)
+		for _, itm := range itemsInCat {
+			say(nick, itm)
 		}
 	}
 
 	// returns information about an item
 	if cmd == p+"item" && hasArgs(word) {
-		data := getItem(argOne)
-
-		if data.Name != "" {
+		if getItem(argOne) {
 			say(channel, fmt.Sprintf("%s: %s - Price: %d ohayous",
-				data.Name, data.Desc, data.Price))
+				ITEM.Name, ITEM.Desc, ITEM.Price))
 		} else {
 			say(channel, "I don't carry that.")
 		}
@@ -184,21 +226,19 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 
 	// respond to nick with their items and quantity of each item
 	if cmd == p+"inventory" {
-		user := getUser(lowNick)
+		getUser(lowNick)
 
-		if user.TimesOhayoued == 0 {
+		if USER.TimesOhayoued == 0 {
 			say(channel, "You haven't ohayoued yet! Type .ohayou to "+
 				"get your first ration.")
-		} else if len(user.Items) > 0 {
-			inv := "You have "
-
-			for item, amt := range user.Items {
+		} else if len(USER.Items) > 0 {
+			for itm, amt := range USER.Items {
 				if amt == 0 {
 					continue
 				} else if amt > 1 {
-					inv += fmt.Sprintf("%d %ss ", amt, item)
+					inv += fmt.Sprintf("%d %ss ", amt, itm)
 				} else {
-					inv += fmt.Sprintf("%d %s ", amt, item)
+					inv += fmt.Sprintf("%d %s ", amt, itm)
 				}
 			}
 
@@ -207,4 +247,5 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 			say(nick, "You don't have any items yet. Keep saving!")
 		}
 	}
+	clearGlobals()
 }

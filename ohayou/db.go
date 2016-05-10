@@ -6,54 +6,28 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-// db consts
-var (
-	dbAddress string = "localhost"
-	dbName    string = "ircbot"
-	ohyCol    string = "ohayou"
-	itemCol   string = "items"
-)
-
 // returns a user's document as a User{} type
-func getUser(nick string) *User {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
+func getUser(nick string) bool {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
 
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(ohyCol)
-
-	result := User{}
-
-	err = q.Find(bson.M{"username": nick}).One(&result)
+	err = q.Find(bson.M{"username": nick}).One(&USER)
 	if err != nil {
 		log.Println("getUser: " + err.Error())
+		return false
 	}
-
-	return &result
+	return true
 }
 
 func newUser(nick string, amt int) {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(ohyCol)
-
-	t := time.Now()
-	est, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		log.Println("err: ", err.Error())
-	}
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+	t = time.Now()
 
 	save := bson.M{
 		"username":      nick,
@@ -73,20 +47,11 @@ func newUser(nick string, amt int) {
 
 // saves the new amount of ohayous after a user has ohayou'd
 func saveOhayous(user *User, amt int) {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
 
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(ohyCol)
-
-	t := time.Now()
-	est, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		log.Println("err: ", err.Error())
-	}
+	t = time.Now()
 
 	save := bson.M{"$set": bson.M{
 		"ohayous":       amt,
@@ -101,36 +66,24 @@ func saveOhayous(user *User, amt int) {
 }
 
 // get all data for item
-func getItem(item string) *Item {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
+func getItem(item string) bool {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(itemCol)
 
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(itemCol)
-
-	result := Item{}
-
-	err = q.Find(bson.M{"name": item}).One(&result)
+	err = q.Find(bson.M{"name": item}).One(&ITEM)
 	if err != nil {
 		log.Println("getItem: " + err.Error())
+		return false
 	}
-
-	return &result
+	return true
 }
 
 // saves an item when it's purchased
 func saveItem(user *User, item string, amt int) {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(ohyCol)
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
 
 	save := bson.M{"$inc": bson.M{"items." + item: amt}}
 
@@ -141,20 +94,10 @@ func saveItem(user *User, item string, amt int) {
 }
 
 func setLastUsed(user *User, item string) {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
-
-	t := time.Now()
-	est, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		log.Println("err: ", err.Error())
-	}
-
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(ohyCol)
+	s := session.Copy()
+	defer s.Close()
+	t = time.Now()
+	q := s.DB(dbName).C(ohyCol)
 
 	save := bson.M{"$set": bson.M{"lastUsed." + item: t.In(est)}}
 
@@ -166,14 +109,9 @@ func setLastUsed(user *User, item string) {
 
 // returns a concatenated string of all categories
 func listCategories() string {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(itemCol)
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(itemCol)
 
 	var result []string
 
@@ -188,14 +126,9 @@ func listCategories() string {
 
 // returns basic information about all items in a category
 func getCategory(name string) []string {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
+	s := session.Copy()
 	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(itemCol)
+	q := s.DB(dbName).C(itemCol)
 
 	var result []Item
 
@@ -216,14 +149,9 @@ func getCategory(name string) []string {
 }
 
 func resetLast(user *User) {
-	session, err := mgo.Dial(dbAddress)
-	if err != nil {
-		panic(err)
-	}
+	s := session.Copy()
 	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
-	q := session.DB(dbName).C(ohyCol)
+	q := s.DB(dbName).C(ohyCol)
 
 	save := bson.M{"$set": bson.M{"last": 0}}
 

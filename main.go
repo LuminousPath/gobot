@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/davecheney/profile"
 	"github.com/mferrera/go-ircevent"
 )
 
@@ -71,6 +72,7 @@ func init() {
 }
 
 func main() {
+	defer profile.Start(profile.MemProfile).Stop()
 	log.Println("Starting up...")
 	log.Println("Reading conf.json...")
 
