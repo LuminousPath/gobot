@@ -4,18 +4,17 @@ import (
 	"log"
 	"strings"
 
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func useItem(nick, nickRaw, itemName, useOn string) string {
+func useItem(nick, nickRaw, itm, useOn string) string {
 	if !getUser(nick) {
 		return "You don't have any items because you've never ohayoued!" +
 			" Get your first ration by typing " + p + "ohayou"
 	}
 
-	if !getItem(itemName) {
-		return itemName + " isn't an item. Type " + p + "items to look and what's" +
+	if !getItem(itm) {
+		return itm + " isn't an item. Type " + p + "items to look and what's" +
 			" available, and " + p + "inventory to see what items you have."
 	}
 
@@ -28,7 +27,7 @@ func useItem(nick, nickRaw, itemName, useOn string) string {
 	}
 
 	if ITEM.Consume {
-		go consumeItem(USER, ITEM.Name)
+		USER.consumeItem(ITEM.Name)
 	}
 
 	if ITEM.HasFunction != "" {
@@ -36,18 +35,22 @@ func useItem(nick, nickRaw, itemName, useOn string) string {
 		extra = doIt(USER, ITEM.Name)
 	}
 
+	if canAdoptCat && ITEM.HasFunction == "adoptCat" {
+		return nickRaw + " offers the cat a " + ITEM.Name + "."
+	}
+
 	return nickRaw + " " + strings.Replace(ITEM.Effect, "%s", useOn, -1) + extra
 }
 
-func consumeItem(user *User, itemName string) {
+func (u *User) consumeItem(itm string) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save := bson.M{"$inc": bson.M{
-		"items." + itemName: -1}}
+	save = bson.M{"$inc": bson.M{
+		"items." + itm: -1}}
 
-	err = q.Update(bson.M{"username": USER.Username}, save)
+	err = q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("consumeItem: " + err.Error())
 	}

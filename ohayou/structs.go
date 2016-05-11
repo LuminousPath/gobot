@@ -1,8 +1,6 @@
 package ohayou
 
-import (
-	"time"
-)
+import "time"
 
 type User struct {
 	Username      string

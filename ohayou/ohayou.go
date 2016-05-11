@@ -9,6 +9,7 @@ import (
 
 	"github.com/mferrera/go-ircevent"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // db consts
@@ -21,32 +22,42 @@ const (
 
 // globalize things that will be used repeatedly throughout the package
 var (
-	p              string
-	eventsStarted  bool
-	argOne         string
-	argTwo         string
+	eventsStarted bool   // if init() has started the events
+	p             string // command prefix passed from main bot
+	lowNick       string // nick lowercased
+	argOne        string // word[1] lowercased
+	argTwo        string // word[2] lowercased
+
+	// following set in newOhayou()
 	typeResponse   string
-	ohayous        int
-	itemOhayous    int
-	itemMultiplier int = 1
-	totalOhayous   int
-	lowNick        string
-	inv            string = "You have "
-	extra          string
-	err            error
-	itemsInCat     []string
-	t              time.Time
-	est            *time.Location
+	ohayous        int // new ohayous
+	itemOhayous    int // extra ohayous given to user from items
+	itemMultiplier int // any item multipliers
+	totalOhayous   int // added all up
+
+	inv        string         // used for inv command
+	extra      string         // used in useItem
+	err        error          // err var used everywhere for logging
+	itemsInCat []string       // slice used to return items in a category
+	itemCats   []string       // slice that holds all item categories
+	save       bson.M         // bson object that maps the "json" we save in DB queries
+	t          time.Time      // time used everywhere
+	est        *time.Location // timezone -- set in init
 
 	adj = [11]string{"Great", "Superb", "Fantastic", "Amazing", "Marvelous",
 		"Stunning", "Splendid", "Exquisite", "Impressive", "Outstanding", "Wonderful"}
 
-	// DB vars
-	session   *mgo.Session
-	dbInitErr error
+	// DB "global" session -- all session are copied from this
+	session *mgo.Session
 
+	// user and item vars for dynamic setting
 	USER *User
 	ITEM *Item
+
+	// irc stuff
+	b     *irc.Connection
+	chans []string
+	say   func(string, string)
 )
 
 func init() {
@@ -58,16 +69,14 @@ func init() {
 	est = setEst
 
 	// set up DB session
-	session, dbInitErr = mgo.Dial(dbAddress)
-	if dbInitErr != nil {
-		panic(dbInitErr)
+	session, err = mgo.Dial(dbAddress)
+	if err != nil {
+		panic(err)
 	}
 	session.SetMode(mgo.Monotonic, true)
-}
 
-func clearGlobals() {
-	inv = "You have "
-	extra = ""
+	// fill up the slice of category names
+	listCategories()
 }
 
 func hasArgs(a []string) bool {
@@ -84,7 +93,6 @@ func randNum(min, max int) int {
 // main function that distributes ohayous
 func newOhayou(nick string) string {
 	ohayous = randNum(0, 6)
-
 	switch ohayous {
 	case 0:
 		typeResponse = "But not good enough. You get 0 ohayous."
@@ -95,34 +103,28 @@ func newOhayou(nick string) string {
 	default:
 		typeResponse = fmt.Sprintf("You get %d ohayous!", ohayous)
 	}
-
 	// get their data
 	t = time.Now()
-
 	// dont allow ohayou if they have ohayou'd today
 	if !getUser(lowNick) {
 		newUser(lowNick, ohayous)
-
 		return "Congratulations on your first ohayou " + nick + "!!! " +
 			typeResponse + " Type .ohayouhelp if you don't know what this is."
 	} else if USER.Last.Format("20060102") >= t.In(est).Format("20060102") {
 		return "You already got your ohayou ration today, " + nick
 	} else {
+		itemMultiplier = 1
 		for itm, amt := range USER.Items {
 			// check if user has item(s) that multiply another item
 			if USER.ItemMultiply[itm] != 0 {
 				itemMultiplier = USER.ItemMultiply[itm]
 			}
-
 			getItem(itm)
 			itemOhayous += (ITEM.Add * amt) * itemMultiplier
 		}
-
 		totalOhayous = USER.Ohayous + ohayous + itemOhayous
-
 		// store it
-		saveOhayous(USER, totalOhayous)
-
+		USER.saveOhayous(totalOhayous)
 		if itemOhayous == 0 {
 			return fmt.Sprintf("%s ohayou %s!!! %s You have %d ohayous.",
 				adj[randNum(0, 11)], nick, typeResponse, totalOhayous)
@@ -135,10 +137,13 @@ func newOhayou(nick string) string {
 	}
 }
 
-func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, admin bool) {
-	say := bot.Privmsg
-	// make the prefix global
+func Run(bot *irc.Connection, prefix, cmd, channel, nick string,
+	channels, word []string, admin bool) {
+
+	b = bot
+	say = b.Privmsg
 	p = prefix
+	chans = channels
 	lowNick = strings.ToLower(nick)
 	if len(word) > 1 {
 		argOne = strings.ToLower(word[1])
@@ -149,7 +154,7 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 
 	// check if events have started, if not, start them and set it so
 	if !eventsStarted {
-		startEvents(bot)
+		startEvents()
 		eventsStarted = true
 	}
 
@@ -190,7 +195,7 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 	// just shows how to use .items and lists item categories
 	if cmd == p+"items" && !hasArgs(word) {
 		say(channel, "Type "+p+"item <category> to get a list of items by "+
-			"category. Categories: "+listCategories())
+			"category. Categories: "+strings.Join(append(itemCats), ", "))
 	}
 
 	// PMs all items in a category
@@ -205,8 +210,13 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 	// returns information about an item
 	if cmd == p+"item" && hasArgs(word) {
 		if getItem(argOne) {
-			say(channel, fmt.Sprintf("%s: %s - Price: %d ohayous",
-				ITEM.Name, ITEM.Desc, ITEM.Price))
+			if ITEM.Purchase {
+				say(channel, fmt.Sprintf("%s: %s - Price: %d ohayous",
+					ITEM.Name, ITEM.Desc, ITEM.Price))
+			} else {
+				say(channel, fmt.Sprintf("%s: %s. Cannot be purchased.",
+					ITEM.Name, ITEM.Desc))
+			}
 		} else {
 			say(channel, "I don't carry that.")
 		}
@@ -226,9 +236,8 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 
 	// respond to nick with their items and quantity of each item
 	if cmd == p+"inventory" {
-		getUser(lowNick)
-
-		if USER.TimesOhayoued == 0 {
+		inv = ""
+		if !getUser(lowNick) {
 			say(channel, "You haven't ohayoued yet! Type .ohayou to "+
 				"get your first ration.")
 		} else if len(USER.Items) > 0 {
@@ -247,5 +256,4 @@ func Run(bot *irc.Connection, prefix, cmd, channel, nick string, word []string, 
 			say(nick, "You don't have any items yet. Keep saving!")
 		}
 	}
-	clearGlobals()
 }

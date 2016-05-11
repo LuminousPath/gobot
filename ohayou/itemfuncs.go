@@ -6,22 +6,27 @@ import (
 
 var itemFuncs = map[string]func(*User, string) string{
 	"saveBottle":  saveBottle,
-	"dragonDildo": dragonDildo}
+	"dragonDildo": dragonDildo,
+	"adoptCat":    adoptCat}
 
-func saveBottle(user *User, itemName string) string {
-	saveItem(user, "bottle", 1)
+func saveBottle(u *User, itm string) string {
+	go u.saveItem("bottle", 1)
 	return ""
 }
 
-func dragonDildo(user *User, itemName string) string {
+func dragonDildo(u *User, itm string) string {
 	t = time.Now()
-
-	if user.LastUsed[itemName].Format("20060102") >= t.In(est).Format("20060102") {
+	if u.LastUsed[itm].Format("20060102") >= t.In(est).Format("20060102") {
 		return " but is all out of lube"
 	}
-
-	go setLastUsed(user, itemName)
-	go resetLast(user)
-
+	go u.setLastUsed(itm)
+	go u.resetLast()
 	return " and shortly thereafter feels good enough to " + p + "ohayou again."
+}
+
+func adoptCat(u *User, itm string) string {
+	if canAdoptCat {
+		catAdopt <- u.Username
+	}
+	return ""
 }

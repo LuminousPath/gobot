@@ -3,7 +3,6 @@ package ohayou
 import (
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
@@ -29,7 +28,7 @@ func newUser(nick string, amt int) {
 	q := s.DB(dbName).C(ohyCol)
 	t = time.Now()
 
-	save := bson.M{
+	save = bson.M{
 		"username":      nick,
 		"last":          t.In(est),
 		"ohayous":       amt,
@@ -46,20 +45,19 @@ func newUser(nick string, amt int) {
 }
 
 // saves the new amount of ohayous after a user has ohayou'd
-func saveOhayous(user *User, amt int) {
+func (u *User) saveOhayous(amt int) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
-
 	t = time.Now()
 
-	save := bson.M{"$set": bson.M{
+	save = bson.M{"$set": bson.M{
 		"ohayous":       amt,
 		"last":          t.In(est),
-		"cumOhayous":    user.CumOhayous + amt,
-		"timesOhayoued": user.TimesOhayoued + 1}}
+		"cumOhayous":    u.CumOhayous + amt,
+		"timesOhayoued": u.TimesOhayoued + 1}}
 
-	err = q.Update(bson.M{"username": user.Username}, save)
+	err = q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("saveOhayous: " + err.Error())
 	}
@@ -79,55 +77,63 @@ func getItem(item string) bool {
 	return true
 }
 
-// saves an item when it's purchased
-func saveItem(user *User, item string, amt int) {
-	s := session.Copy()
-	defer s.Close()
-	q := s.DB(dbName).C(ohyCol)
+// mostly used for simple incrementation for an item, ie bottle
+func (u *User) saveItem(itm string, amt int) {
+	if getItem(itm) {
+		s := session.Copy()
+		defer s.Close()
+		q := s.DB(dbName).C(ohyCol)
 
-	save := bson.M{"$inc": bson.M{"items." + item: amt}}
+		if ITEM.Multiplies != "" {
+			save = bson.M{"$inc": bson.M{
+				"ohayous":                         -ITEM.Price * amt,
+				"add":                             ITEM.Add * amt,
+				"items." + itm:                    amt,
+				"itemMultiply." + ITEM.Multiplies: ITEM.Multiply}}
+		} else {
+			save = bson.M{"$inc": bson.M{
+				"ohayous":      -ITEM.Price * amt,
+				"add":          ITEM.Add * amt,
+				"items." + itm: amt}}
+		}
 
-	err = q.Update(bson.M{"username": user.Username}, save)
-	if err != nil {
-		log.Println("saveItem: " + err.Error())
+		err = q.Update(bson.M{"username": u.Username}, save)
+		if err != nil {
+			log.Println("saveItem: " + err.Error())
+		}
 	}
 }
 
-func setLastUsed(user *User, item string) {
+func (u *User) setLastUsed(item string) {
 	s := session.Copy()
 	defer s.Close()
 	t = time.Now()
 	q := s.DB(dbName).C(ohyCol)
 
-	save := bson.M{"$set": bson.M{"lastUsed." + item: t.In(est)}}
+	save = bson.M{"$set": bson.M{"lastUsed." + item: t.In(est)}}
 
-	err = q.Update(bson.M{"username": user.Username}, save)
+	err = q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}
 }
 
 // returns a concatenated string of all categories
-func listCategories() string {
+func listCategories() {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(itemCol)
 
-	var result []string
-
-	err = q.Find(nil).Distinct("category", &result)
+	err = q.Find(nil).Distinct("category", &itemCats)
 	if err != nil {
 		log.Println("getCategories: " + err.Error())
 	}
-
-	// cate, gor, ies
-	return strings.Join(append(result), ", ")
 }
 
 // returns basic information about all items in a category
 func getCategory(name string) []string {
 	s := session.Copy()
-	defer session.Close()
+	defer s.Close()
 	q := s.DB(dbName).C(itemCol)
 
 	var result []Item
@@ -144,18 +150,17 @@ func getCategory(name string) []string {
 		items[j] = fmt.Sprintf("%s - %d ohayous - %s",
 			item.Name, item.Price, item.Desc)
 	}
-
 	return items
 }
 
-func resetLast(user *User) {
+func (u *User) resetLast() {
 	s := session.Copy()
-	defer session.Close()
+	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save := bson.M{"$set": bson.M{"last": 0}}
+	save = bson.M{"$set": bson.M{"last": 0}}
 
-	err = q.Update(bson.M{"username": user.Username}, save)
+	err = q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}

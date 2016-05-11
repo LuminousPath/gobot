@@ -56,7 +56,7 @@ func (bot *Bot) listen() {
 			log.Println("Ignored message from", e.Nick)
 		} else {
 			go catfact.Run(bot.irc, p, cmd, channel, word)
-			go ohayou.Run(bot.irc, p, cmd, channel, nick, word, admin)
+			go ohayou.Run(bot.irc, p, cmd, channel, nick, bot.Channels, word, admin)
 		}
 	})
 }
