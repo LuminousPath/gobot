@@ -13,14 +13,19 @@ type CatFact struct {
 	Success string   `json:"success"`
 }
 
-func fact() string {
-	api := "http://catfacts-api.appspot.com/api/facts?number=1"
+var (
+	api  string = "http://catfacts-api.appspot.com/api/facts?number=1"
+	cat  CatFact
+	say  func(string, string)
+	err  error
+	resp *http.Response
+)
 
-	resp, err := http.Get(api)
+func fact() string {
+	resp, err = http.Get(api)
 	if err != nil {
 		log.Println(err)
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
@@ -28,8 +33,6 @@ func fact() string {
 	}
 
 	decoder := json.NewDecoder(resp.Body)
-
-	cat := CatFact{}
 
 	err = decoder.Decode(&cat)
 	if err != nil {
@@ -44,7 +47,7 @@ func fact() string {
 }
 
 func Run(bot *irc.Connection, p, cmd, channel string, word []string) {
-	say := bot.Privmsg
+	say = bot.Privmsg
 
 	if word[0] == p+"cat" || word[0] == p+"catfact" {
 		say(channel, fact())

@@ -29,7 +29,8 @@ func catEvent() {
 	go func() {
 		<-catTimer.C
 		for _, c := range chans {
-			say(c, "A random cat appears! "+p+"use burger or pancake to adopt it!")
+			say(c, "A random cat appears! "+p+"use burger or "+p+"pancake to "+
+				"adopt it!")
 		}
 		catTimer.Stop()
 		go waitCatAdopt()

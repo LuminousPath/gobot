@@ -12,6 +12,7 @@ type User struct {
 	Items         map[string]int
 	ItemMultiply  map[string]int       `bson:"itemMultiply"`
 	LastUsed      map[string]time.Time `bson:"lastUsed"`
+	Pin           int
 }
 
 type Item struct {
@@ -34,4 +35,14 @@ type Item struct {
 type TimeZone struct {
 	l *time.Location
 	e error
+}
+
+type UserOhayous struct {
+	Username string
+	Ohayous  int
+}
+
+type SubmitPin struct {
+	Username string
+	Pin      int
 }

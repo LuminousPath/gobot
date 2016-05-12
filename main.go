@@ -15,6 +15,7 @@ import (
 type Bot struct {
 	Nick                   string            `json:"nick"`
 	User                   string            `json:"user"`
+	NickPW                 string            `json:"nickPw"`
 	Server                 string            `json:"server"`
 	Port                   int               `json:"port"`
 	Channels               []string          `json:"channels"`
@@ -58,6 +59,10 @@ func (bot *Bot) connect() {
 	// log admins
 	for admin, hostname := range bot.Admins {
 		log.Println(fmt.Sprintf("Admin: %s!*@%s", admin, hostname))
+	}
+
+	if bot.NickPW != "" {
+		bot.irc.Privmsg("NickServ", "identify "+bot.NickPW)
 	}
 
 	// add listener callback

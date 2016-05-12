@@ -165,3 +165,29 @@ func (u *User) resetLast() {
 		log.Println("saveItem: " + err.Error())
 	}
 }
+
+func (u *User) savePin(pn int) {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	save = bson.M{"$set": bson.M{"pin": pn}}
+
+	err = q.Update(bson.M{"username": u.Username}, save)
+	if err != nil {
+		log.Println("saveItem: " + err.Error())
+	}
+}
+
+func getTop() {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	save = bson.M{"username": 1, "ohayous": 1}
+
+	err = q.Find(nil).Select(save).Sort("-ohayous").Limit(5).Iter().All(&top)
+	if err != nil {
+		log.Println("saveItem: " + err.Error())
+	}
+}
