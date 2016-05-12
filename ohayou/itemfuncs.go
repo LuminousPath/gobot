@@ -16,7 +16,7 @@ func saveBottle(u *User, itm string) string {
 
 func dragonDildo(u *User, itm string) string {
 	t = time.Now()
-	if u.LastUsed[itm].Format("20060102") >= t.In(est).Format("20060102") {
+	if u.LastUsed[itm].In(est).Format("20060102") >= t.In(est).Format("20060102") {
 		return " but is all out of lube"
 	}
 	go u.setLastUsed(itm)

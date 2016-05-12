@@ -26,11 +26,10 @@ func newUser(nick string, amt int) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
-	t = time.Now()
 
 	save = bson.M{
 		"username":      nick,
-		"last":          t.In(est),
+		"last":          time.Now().In(est),
 		"ohayous":       amt,
 		"cumOhayous":    amt,
 		"add":           0,
@@ -49,11 +48,10 @@ func (u *User) saveOhayous(amt int) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
-	t = time.Now()
 
 	save = bson.M{"$set": bson.M{
 		"ohayous":       amt,
-		"last":          t.In(est),
+		"last":          time.Now().In(est),
 		"cumOhayous":    u.CumOhayous + amt,
 		"timesOhayoued": u.TimesOhayoued + 1}}
 
@@ -107,10 +105,9 @@ func (u *User) saveItem(itm string, amt int) {
 func (u *User) setLastUsed(item string) {
 	s := session.Copy()
 	defer s.Close()
-	t = time.Now()
 	q := s.DB(dbName).C(ohyCol)
 
-	save = bson.M{"$set": bson.M{"lastUsed." + item: t.In(est)}}
+	save = bson.M{"$set": bson.M{"lastUsed." + item: time.Now().In(est)}}
 
 	err = q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {

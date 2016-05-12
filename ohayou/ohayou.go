@@ -48,8 +48,10 @@ var (
 	itemCats   []string // slice that holds all item categories
 	top        []UserOhayous
 	top5       string
-	save       bson.M         // bson object that maps the "json" we save in DB queries
-	t          time.Time      // time used everywhere
+	save       bson.M    // bson object that maps the "json" we save in DB queries
+	t          time.Time // time used everywhere
+	last       time.Time
+	now        time.Time
 	est        *time.Location // timezone -- set in init
 
 	adj = [11]string{"Great", "Superb", "Fantastic", "Amazing", "Marvelous",
@@ -124,16 +126,17 @@ func newOhayou(nick string) string {
 		typeResponse = fmt.Sprintf("You get %d ohayous!", ohayous)
 	}
 	// get their data
-	t = time.Now()
+	last = time.Now()
 	// dont allow ohayou if they have ohayou'd today
 	if !getUser(lowNick) {
 		newUser(lowNick, ohayous)
 		return "Congratulations on your first ohayou " + nick + "!!! " +
 			typeResponse + " Type .ohayouhelp if you don't know what this is."
-	} else if USER.Last.Format("20060102") >= t.In(est).Format("20060102") {
+	} else if USER.Last.In(est).Format("20060102") >= last.In(est).Format("20060102") {
 		return "You already got your ohayou ration today, " + nick
 	} else {
 		itemMultiplier = 1
+		itemOhayous = 0
 		for itm, amt := range USER.Items {
 			// check if user has item(s) that multiply another item
 			if USER.ItemMultiply[itm] != 0 {
@@ -147,11 +150,11 @@ func newOhayou(nick string) string {
 		USER.saveOhayous(totalOhayous)
 		if itemOhayous == 0 {
 			return fmt.Sprintf("%s ohayou %s!!! %s You have %d ohayous.",
-				adj[randNum(0, 11)], nick, typeResponse, totalOhayous)
+				adj[randNum(0, 10)], nick, typeResponse, totalOhayous)
 		} else {
 			return fmt.Sprintf("%s ohayou %s!!! %s Your items increased "+
 				"that to %d. You have %d ohayous.",
-				adj[randNum(0, 11)], nick, typeResponse,
+				adj[randNum(0, 10)], nick, typeResponse,
 				ohayous+itemOhayous, totalOhayous)
 		}
 	}
