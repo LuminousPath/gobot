@@ -46,3 +46,7 @@ type SubmitPin struct {
 	Username string
 	Pin      int
 }
+
+type Fortunes struct {
+	Fortune [500]string
+}

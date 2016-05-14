@@ -7,6 +7,11 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+var (
+	doIt  func(*User, string) string
+	extra string
+)
+
 func useItem(nick, nickRaw, itm, useOn string) string {
 	if !getUser(nick) {
 		return "You don't have any items because you've never ohayoued!" +

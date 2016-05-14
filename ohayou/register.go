@@ -6,6 +6,10 @@ import (
 	"github.com/mferrera/go-ircevent"
 )
 
+var (
+	isRegistered bool
+)
+
 func doRegister(nick string, pn int) {
 	b.AddCallback("307", func(e *irc.Event) {
 		isRegistered = true

@@ -12,14 +12,6 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// db consts
-const (
-	dbAddress string = "localhost"
-	dbName    string = "ircbot"
-	ohyCol    string = "ohayou"
-	itemCol   string = "items"
-)
-
 // globalize things that will be used repeatedly throughout the package
 var (
 	eventsStarted bool   // if init() has started the events
@@ -30,9 +22,8 @@ var (
 	isPM          bool
 
 	// for registering
-	pin          int
-	isRegistered bool
-	getPin       = make(chan SubmitPin)
+	pin    int
+	getPin = make(chan SubmitPin)
 
 	// following set in newOhayou()
 	typeResponse   string
@@ -42,7 +33,6 @@ var (
 	totalOhayous   int // added all up
 
 	inv        string   // used for inv command
-	extra      string   // used in useItem
 	err        error    // err var used everywhere for logging
 	itemsInCat []string // slice used to return items in a category
 	itemCats   []string // slice that holds all item categories
@@ -65,9 +55,10 @@ var (
 	ITEM *Item
 
 	// irc stuff
-	b     *irc.Connection
-	chans []string
-	say   func(string, string)
+	b       *irc.Connection
+	chans   []string
+	say     func(string, string)
+	curChan string
 )
 
 func init() {
@@ -164,6 +155,7 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 	b = bot
 	say = b.Privmsg
 	p = pre
+	curChan = channel
 	chans = chnls
 	pin = 0
 	lowNick = strings.ToLower(nick)
@@ -185,6 +177,10 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 		eventsStarted = true
 	}
 
+	if cmd == p+"changelog" {
+		say(channel, "Latest changelog: http://pastebin.com/LANmT0Ww")
+	}
+
 	// main command to acquire new ohayous
 	if cmd == p+"ohayou" && !hasArgs(word) && !isPM {
 		say(channel, newOhayou(nick))
@@ -200,7 +196,7 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 	}
 
 	if cmd == p+"buy" && !hasArgs(word) && !isPM {
-		say(channel, "Usage: "+p+"buy <item> will buy you one <item>."+
+		say(channel, "Usage: "+p+"buy <item> will buy you one <item>. "+
 			p+"buy <item> 3 will buy you 3 of <item>, if you can afford it.")
 	} else if cmd == p+"buy" && hasArgs(word) && !isPM {
 		// if a purchase quantity is given
@@ -221,7 +217,7 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 
 	// just shows how to use .items and lists item categories
 	if cmd == p+"items" && !hasArgs(word) && !isPM {
-		say(channel, "Type "+p+"item <category> to get a list of items by "+
+		say(channel, "Type "+p+"items <category> to get a list of items by "+
 			"category. Categories: "+strings.Join(append(itemCats), ", "))
 	}
 
@@ -316,7 +312,7 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 				say(nick, "Your pin must be a four digit number. Example: "+
 					p+"register 1234")
 			} else {
-				doRegister(nick, pin)
+				doRegister(lowNick, pin)
 			}
 
 		}
@@ -329,5 +325,9 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 		} else {
 			getPin <- SubmitPin{lowNick, pin}
 		}
+	}
+
+	if cmd == p+"fortune" {
+		say(channel, GetFortune())
 	}
 }

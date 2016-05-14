@@ -4,10 +4,15 @@ import (
 	"time"
 )
 
-var itemFuncs = map[string]func(*User, string) string{
-	"saveBottle":  saveBottle,
-	"dragonDildo": dragonDildo,
-	"adoptCat":    adoptCat}
+var (
+	fortunes Fortunes
+
+	itemFuncs = map[string]func(*User, string) string{
+		"saveBottle":  saveBottle,
+		"dragonDildo": dragonDildo,
+		"adoptCat":    adoptCat,
+		"fortune":     fortune}
+)
 
 func saveBottle(u *User, itm string) string {
 	go u.saveItem("bottle", 1)
@@ -29,4 +34,14 @@ func adoptCat(u *User, itm string) string {
 		catAdopt <- u.Username
 	}
 	return ""
+}
+
+func fortune(u *User, itm string) string {
+	t = time.Now()
+	if u.LastUsed[itm].In(est).Format("20060102") >= t.In(est).Format("20060102") {
+		return "asks the figurine for a fortune, but Godzilla doesn't respond. " +
+			"Try again tomorrow."
+	}
+	go u.setLastUsed(itm)
+	return "- " + GetFortune()
 }

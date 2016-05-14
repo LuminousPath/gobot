@@ -8,6 +8,14 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+// db consts
+const (
+	dbAddress string = "localhost"
+	dbName    string = "ircbot"
+	ohyCol    string = "ohayou"
+	itemCol   string = "items"
+)
+
 // returns a user's document as a User{} type
 func getUser(nick string) bool {
 	s := session.Copy()
@@ -187,4 +195,19 @@ func getTop() {
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}
+}
+
+//TODO: move this to init() so it doesnt needlessly restore
+// the same fortunes everytime someone uses the command
+// also clean up variable/field names to be less redundant
+func GetFortune() string {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C("extra")
+
+	err = q.Find(nil).One(&fortunes)
+	if err != nil {
+		log.Println("GetFortune: " + err.Error())
+	}
+	return fortunes.Fortune[randNum(0, 500)]
 }
