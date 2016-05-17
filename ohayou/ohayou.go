@@ -14,45 +14,27 @@ import (
 
 // globalize things that will be used repeatedly throughout the package
 var (
-	eventsStarted bool   // if init() has started the events
-	p             string // command prefix passed from main bot
-	lowNick       string // nick lowercased
-	argOne        string // word[1] lowercased
-	argTwo        string // word[2] lowercased
-	isPM          bool
+	p       string // command prefix passed from main bot
+	lowNick string // nick lowercased
+	argOne  string // word[1] lowercased
+	argTwo  string // word[2] lowercased
+	isPM    bool
 
 	// for registering
 	pin    int
 	getPin = make(chan SubmitPin)
 
-	// following set in newOhayou()
-	typeResponse   string
-	ohayous        int // new ohayous
-	itemOhayous    int // extra ohayous given to user from items
-	itemMultiplier int // any item multipliers
-	totalOhayous   int // added all up
-
-	inv        string   // used for inv command
-	err        error    // err var used everywhere for logging
-	itemsInCat []string // slice used to return items in a category
-	itemCats   []string // slice that holds all item categories
-	top        []UserOhayous
-	top5       string
-	save       bson.M    // bson object that maps the "json" we save in DB queries
-	t          time.Time // time used everywhere
+	inv        string        // used for inv command
+	err        error         // err var used everywhere for logging
+	itemsInCat []string      // slice used to return items in a category
+	itemCats   []string      // slice that holds all item categories
+	top        []UserOhayous // holds users+ohayous to be iterated over
+	top5       string        // iterated over user+ohayou struct and concatenated
+	save       bson.M        // bson object that maps the "json" we save in DB queries
+	t          time.Time     // time used everywhere
 	last       time.Time
 	now        time.Time
 	est        *time.Location // timezone -- set in init
-
-	adj = [11]string{"Great", "Superb", "Fantastic", "Amazing", "Marvelous",
-		"Stunning", "Splendid", "Exquisite", "Impressive", "Outstanding", "Wonderful"}
-
-	// DB "global" session -- all session are copied from this
-	session *mgo.Session
-
-	// user and item vars
-	USER *User
-	ITEM *Item
 
 	// irc stuff
 	b       *irc.Connection
@@ -77,7 +59,9 @@ func init() {
 	session.SetMode(mgo.Monotonic, true)
 
 	// fill up the slice of category names
-	listCategories()
+	go listCategories()
+	go startEvents()  // start all special events
+	go fillFortunes() // fill fortunes var
 }
 
 func hasArgs(a []string) bool {
@@ -103,54 +87,6 @@ func isPin(pn string) bool {
 	}
 }
 
-// main function that distributes ohayous
-func newOhayou(nick string) string {
-	ohayous = randNum(0, 6)
-	switch ohayous {
-	case 0:
-		typeResponse = "But not good enough. You get 0 ohayous."
-	case 1:
-		typeResponse = "You get 1 ohayou."
-	case 6:
-		typeResponse = "Wow! You get 6 ohayous!"
-	default:
-		typeResponse = fmt.Sprintf("You get %d ohayous!", ohayous)
-	}
-	// get their data
-	last = time.Now()
-	// dont allow ohayou if they have ohayou'd today
-	if !getUser(lowNick) {
-		newUser(lowNick, ohayous)
-		return "Congratulations on your first ohayou " + nick + "!!! " +
-			typeResponse + " Type .ohayouhelp if you don't know what this is."
-	} else if USER.Last.In(est).Format("20060102") >= last.In(est).Format("20060102") {
-		return "You already got your ohayou ration today, " + nick
-	} else {
-		itemMultiplier = 1
-		itemOhayous = 0
-		for itm, amt := range USER.Items {
-			// check if user has item(s) that multiply another item
-			if USER.ItemMultiply[itm] != 0 {
-				itemMultiplier = USER.ItemMultiply[itm]
-			}
-			getItem(itm)
-			itemOhayous += (ITEM.Add * amt) * itemMultiplier
-		}
-		totalOhayous = USER.Ohayous + ohayous + itemOhayous
-		// store it
-		USER.saveOhayous(totalOhayous)
-		if itemOhayous == 0 {
-			return fmt.Sprintf("%s ohayou %s!!! %s You have %d ohayous.",
-				adj[randNum(0, 10)], nick, typeResponse, totalOhayous)
-		} else {
-			return fmt.Sprintf("%s ohayou %s!!! %s Your items increased "+
-				"that to %d. You have %d ohayous.",
-				adj[randNum(0, 10)], nick, typeResponse,
-				ohayous+itemOhayous, totalOhayous)
-		}
-	}
-}
-
 func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []string) {
 	b = bot
 	say = b.Privmsg
@@ -171,14 +107,19 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 		isPM = true
 	}
 
-	// check if events have started, if not, start them and set it so
-	if !eventsStarted {
-		startEvents()
-		eventsStarted = true
-	}
-
+	// latest changelog
 	if cmd == p+"changelog" {
 		say(channel, "Latest changelog: http://pastebin.com/LANmT0Ww")
+	}
+
+	// displays some help
+	if cmd == p+"help" && hasArgs(word) {
+		if argOne == "ohayou" {
+			say(channel, "An ohayou game. Acquire ohayous and purchase things "+
+				"with them. Some items have special functions. Commands: "+p+
+				"ohayou, "+p+"buy, "+p+"item, "+p+"items, "+p+"use, "+p+
+				"inventory, "+p+"register, "+p+"changelog")
+		}
 	}
 
 	// main command to acquire new ohayous
@@ -199,6 +140,12 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 		say(channel, "Usage: "+p+"buy <item> will buy you one <item>. "+
 			p+"buy <item> 3 will buy you 3 of <item>, if you can afford it.")
 	} else if cmd == p+"buy" && hasArgs(word) && !isPM {
+		if argOne == "ohayou" && getUser(lowNick) {
+			say(channel, fmt.Sprintf("You purchased %d ohayous for %d ohayous. "+
+				"You have %d ohayous left.",
+				USER.Ohayous, USER.Ohayous, USER.Ohayous))
+			return
+		}
 		// if a purchase quantity is given
 		if len(word) > 2 {
 			// try to convert it to an integer
@@ -224,7 +171,6 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 	// PMs all items in a category
 	if cmd == p+"items" && hasArgs(word) {
 		itemsInCat = getCategory(argOne)
-
 		for _, itm := range itemsInCat {
 			say(nick, itm)
 		}
@@ -254,6 +200,20 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 			say(channel, useItem(lowNick, nick, argOne, argTwo))
 		} else {
 			say(channel, useItem(lowNick, nick, argOne, "somebody"))
+		}
+	}
+
+	if cmd == p+"steal" && hasArgs(word) {
+		if getUser(lowNick) {
+			if PutUser(argOne, &stealVictim) {
+				go USER.StealFrom(stealVictim, channel, nick, word[1])
+			} else {
+				say(channel, "You can't steal from "+word[1]+" because "+
+					word[1]+"has never ohayou'd!")
+			}
+		} else {
+			say(channel, "You can't do that because you haven't ohayou'd yet! "+
+				"Type "+p+"ohayou to get your first ration.")
 		}
 	}
 
@@ -325,9 +285,5 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 		} else {
 			getPin <- SubmitPin{lowNick, pin}
 		}
-	}
-
-	if cmd == p+"fortune" {
-		say(channel, GetFortune())
 	}
 }

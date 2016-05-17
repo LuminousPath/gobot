@@ -1,7 +1,10 @@
 package ohayou
 
 import (
+	"log"
 	"time"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 var (
@@ -46,9 +49,9 @@ func waitCatAdopt() {
 		case user := <-catAdopt:
 			if getUser(user) {
 				for _, c := range chans {
-					say(c, "And adopts the cat!")
+					say(c, user+" adopts the cat!")
 				}
-				USER.saveItem("cat", 1)
+				USER.SaveCat()
 			}
 			canAdoptCat = false
 			return
@@ -59,5 +62,19 @@ func waitCatAdopt() {
 			canAdoptCat = false
 			return
 		}
+	}
+}
+
+func (u *User) SaveCat() {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	save = bson.M{"$inc": bson.M{
+		"items.cat": 1}}
+
+	err = q.Update(bson.M{"username": u.Username}, save)
+	if err != nil {
+		log.Println("saveItem: " + err.Error())
 	}
 }

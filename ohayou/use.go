@@ -13,18 +13,19 @@ var (
 )
 
 func useItem(nick, nickRaw, itm, useOn string) string {
+	extra = ""
 	if !getUser(nick) {
-		return "You don't have any items because you've never ohayoued!" +
-			" Get your first ration by typing " + p + "ohayou"
+		return "You don't have any items because you've never ohayou'd!" +
+			" Get your first ration by typing " + p + "ohayou."
 	}
 
 	if !getItem(itm) {
-		return itm + " isn't an item. Type " + p + "items to look and what's" +
+		return itm + " isn't an item. Type " + p + "items to look at what's" +
 			" available, and " + p + "inventory to see what items you have."
 	}
 
 	if USER.Items[ITEM.Name] == 0 {
-		return "You don't any of that."
+		return "You don't have any of that."
 	}
 
 	if !ITEM.Useable {
@@ -41,7 +42,7 @@ func useItem(nick, nickRaw, itm, useOn string) string {
 	}
 
 	if canAdoptCat && ITEM.HasFunction == "adoptCat" {
-		return nickRaw + " offers the cat a " + ITEM.Name + "."
+		return nickRaw + " offers the cat a " + ITEM.Name + "..."
 	}
 
 	return nickRaw + " " + strings.Replace(ITEM.Effect, "%s", useOn, -1) + extra

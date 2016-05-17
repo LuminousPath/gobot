@@ -13,6 +13,7 @@ type User struct {
 	ItemMultiply  map[string]int       `bson:"itemMultiply"`
 	LastUsed      map[string]time.Time `bson:"lastUsed"`
 	Pin           int
+	Fortune       string
 }
 
 type Item struct {
@@ -45,8 +46,4 @@ type UserOhayous struct {
 type SubmitPin struct {
 	Username string
 	Pin      int
-}
-
-type Fortunes struct {
-	Fortune [500]string
 }

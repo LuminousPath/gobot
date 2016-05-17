@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -16,6 +17,12 @@ const (
 	itemCol   string = "items"
 )
 
+var (
+	session *mgo.Session
+	USER    *User
+	ITEM    *Item
+)
+
 // returns a user's document as a User{} type
 func getUser(nick string) bool {
 	s := session.Copy()
@@ -25,6 +32,19 @@ func getUser(nick string) bool {
 	err = q.Find(bson.M{"username": nick}).One(&USER)
 	if err != nil {
 		log.Println("getUser: " + err.Error())
+		return false
+	}
+	return true
+}
+
+func PutUser(nick string, where **User) bool {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	err = q.Find(bson.M{"username": nick}).One(where)
+	if err != nil {
+		log.Println("PutUser: " + err.Error())
 		return false
 	}
 	return true
@@ -195,19 +215,4 @@ func getTop() {
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}
-}
-
-//TODO: move this to init() so it doesnt needlessly restore
-// the same fortunes everytime someone uses the command
-// also clean up variable/field names to be less redundant
-func GetFortune() string {
-	s := session.Copy()
-	defer s.Close()
-	q := s.DB(dbName).C("extra")
-
-	err = q.Find(nil).One(&fortunes)
-	if err != nil {
-		log.Println("GetFortune: " + err.Error())
-	}
-	return fortunes.Fortune[randNum(0, 500)]
 }

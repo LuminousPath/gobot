@@ -5,8 +5,6 @@ import (
 )
 
 var (
-	fortunes Fortunes
-
 	itemFuncs = map[string]func(*User, string) string{
 		"saveBottle":  saveBottle,
 		"dragonDildo": dragonDildo,
@@ -22,7 +20,7 @@ func saveBottle(u *User, itm string) string {
 func dragonDildo(u *User, itm string) string {
 	t = time.Now()
 	if u.LastUsed[itm].In(est).Format("20060102") >= t.In(est).Format("20060102") {
-		return " but is all out of lube"
+		return " but is all out of lube."
 	}
 	go u.setLastUsed(itm)
 	go u.resetLast()
@@ -39,9 +37,8 @@ func adoptCat(u *User, itm string) string {
 func fortune(u *User, itm string) string {
 	t = time.Now()
 	if u.LastUsed[itm].In(est).Format("20060102") >= t.In(est).Format("20060102") {
-		return "asks the figurine for a fortune, but Godzilla doesn't respond. " +
-			"Try again tomorrow."
+		return "- here's today's fortune again: " + u.Fortune
 	}
 	go u.setLastUsed(itm)
-	return "- " + GetFortune()
+	return "- " + u.GetFortune()
 }

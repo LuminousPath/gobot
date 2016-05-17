@@ -19,7 +19,6 @@ func hasArgs(a []string) bool {
 	if len(a) > 1 {
 		return true
 	}
-
 	return false
 }
 
