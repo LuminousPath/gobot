@@ -6,34 +6,25 @@ import (
 	"github.com/mferrera/go-ircevent"
 )
 
-var (
-	isRegistered bool
-)
+func (u *User) Register(pin int, b *irc.Connection) {
+	var registered bool = false
 
-func doRegister(nick string, pn int) {
 	b.AddCallback("307", func(e *irc.Event) {
-		isRegistered = true
+		registered = true
 	})
 	b.AddCallback("318", func(e *irc.Event) {
 		b.ClearCallback("307")
 		b.ClearCallback("318")
-		if isRegistered {
-			if getUser(nick) {
-				say(nick, fmt.Sprintf("Successfully registered your PIN: %d. "+
-					"Don't forget it!", pn))
-				USER.savePin(pn)
-			} else {
-				say(nick, "Looks like you haven't ohayou'd yet. Type "+p+
-					"ohayou in a channel I'm in to get your ration, and "+
-					"then you can register.")
-			}
+		if registered {
+			say(u.Username, fmt.Sprintf("Successfully registered your PIN: %d. "+
+				"Don't forget it!", pin))
+			u.SavePin(pin)
 		} else {
-			say(nick, "Your nick isn't registered or you aren't identified with "+
-				"NickServ. You must do both before you can register")
+			say(u.Username, "Your nick isn't registered or you aren't identified "+
+				"with NickServ. You must do both before you can register")
 		}
-		isRegistered = false
 		return
 
 	})
-	b.Whois(nick)
+	b.Whois(u.Username)
 }

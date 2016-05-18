@@ -7,40 +7,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mferrera/go-ircevent"
+	"github.com/mferrera/gobot/common"
 	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 )
 
-// globalize things that will be used repeatedly throughout the package
 var (
-	p       string // command prefix passed from main bot
-	lowNick string // nick lowercased
-	argOne  string // word[1] lowercased
-	argTwo  string // word[2] lowercased
-	isPM    bool
+	p string // command p+refix p+assed from main bot
 
 	// for registering
-	pin    int
-	getPin = make(chan SubmitPin)
+	sendPin = make(chan SubmitPin)
 
-	inv        string        // used for inv command
-	err        error         // err var used everywhere for logging
-	itemsInCat []string      // slice used to return items in a category
-	itemCats   []string      // slice that holds all item categories
-	top        []UserOhayous // holds users+ohayous to be iterated over
-	top5       string        // iterated over user+ohayou struct and concatenated
-	save       bson.M        // bson object that maps the "json" we save in DB queries
-	t          time.Time     // time used everywhere
-	last       time.Time
-	now        time.Time
-	est        *time.Location // timezone -- set in init
+	itemCtgs []string       // slice that holds all item categories
+	est      *time.Location // timezone -- set in init
 
 	// irc stuff
-	b       *irc.Connection
-	chans   []string
-	say     func(string, string)
-	curChan string
+	say   func(string, string)
+	chans []string
+
+	session *mgo.Session
 )
 
 func init() {
@@ -58,10 +42,9 @@ func init() {
 	}
 	session.SetMode(mgo.Monotonic, true)
 
-	// fill up the slice of category names
-	go listCategories()
-	go startEvents()  // start all special events
-	go fillFortunes() // fill fortunes var
+	go setCategories() // fill var with current item categories
+	go fillFortunes()  // p+ut all fortunes in var
+	go startEvents()   // start all special events
 }
 
 func hasArgs(a []string) bool {
@@ -75,11 +58,11 @@ func randNum(min, max int) int {
 	return min + rand.Intn(max-min+1)
 }
 
-func isPin(pn string) bool {
-	if len(pn) != 4 {
+func isPin(pin string) bool {
+	if len(pin) != 4 {
 		return false
 	}
-	_, err = strconv.Atoi(pn)
+	_, err := strconv.Atoi(pin)
 	if err != nil {
 		return false
 	} else {
@@ -87,144 +70,166 @@ func isPin(pn string) bool {
 	}
 }
 
-func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []string) {
-	b = bot
-	say = b.Privmsg
-	p = pre
-	curChan = channel
-	chans = chnls
-	pin = 0
-	lowNick = strings.ToLower(nick)
-	if len(word) > 1 {
-		argOne = strings.ToLower(word[1])
+func Run(m common.EmitMsg) {
+	say = m.Say
+	p = m.P
+	chans = *m.Channels
+	lowNick := strings.ToLower(m.Nick)
+	var argOne, argTwo string
+	var isPM bool
+
+	// lowercase first and second arguments
+	// since they are often items/m.Nicks
+	if len(m.Word) > 1 {
+		argOne = strings.ToLower(m.Word[1])
 	}
-	if len(word) > 2 {
-		argTwo = strings.ToLower(word[2])
+	if len(m.Word) > 2 {
+		argTwo = strings.ToLower(m.Word[2])
 	}
-	if channel[:1] == "#" {
+
+	// check if this is a PM
+	if m.Channel[:1] == "#" {
 		isPM = false
 	} else {
 		isPM = true
 	}
 
 	// latest changelog
-	if cmd == p+"changelog" {
-		say(channel, "Latest changelog: http://pastebin.com/LANmT0Ww")
+	if m.Cmd == p+"changelog" {
+		say(m.Channel, "Latest changelog: http://pastebin.com/LANmT0Ww")
 	}
 
 	// displays some help
-	if cmd == p+"help" && hasArgs(word) {
-		if argOne == "ohayou" {
-			say(channel, "An ohayou game. Acquire ohayous and purchase things "+
-				"with them. Some items have special functions. Commands: "+p+
-				"ohayou, "+p+"buy, "+p+"item, "+p+"items, "+p+"use, "+p+
-				"inventory, "+p+"register, "+p+"changelog")
-		}
+	if m.Cmd == p+"help" && argOne == "ohayou" {
+		say(m.Channel, "An ohayou game. Acquire ohayous and purchase things "+
+			"with them. Some items have special functions. Commands: "+p+
+			"ohayou, "+p+"buy, "+p+"item, "+p+"items, "+p+"use, "+p+
+			"inventory, "+p+"register, "+p+"changelog")
 	}
 
 	// main command to acquire new ohayous
-	if cmd == p+"ohayou" && !hasArgs(word) && !isPM {
-		say(channel, newOhayou(nick))
+	if m.Cmd == p+"ohayou" && !hasArgs(m.Word) && !isPM {
+		say(m.Channel, Ohayou(m.Nick))
 	}
 
-	// respond to channel with how many ohayous X has
-	if cmd == p+"ohayou" && hasArgs(word) && !isPM {
-		if getUser(argOne) {
-			say(channel, fmt.Sprintf("%s has %d ohayous.", word[1], USER.Ohayous))
+	// respond to m.Channel with how many ohayous X has
+	if m.Cmd == p+"ohayou" && hasArgs(m.Word) && !isPM {
+		user, ok := GetUser(argOne)
+		if ok {
+			say(m.Channel, fmt.Sprintf("%s has %d ohayous.",
+				m.Word[1], user.Ohayous))
 		} else {
-			say(channel, argOne+" hasn't ohayoued yet!")
+			say(m.Channel, argOne+" hasn't ohayoued yet!")
 		}
 	}
 
-	if cmd == p+"buy" && !hasArgs(word) && !isPM {
-		say(channel, "Usage: "+p+"buy <item> will buy you one <item>. "+
+	if m.Cmd == p+"buy" && !hasArgs(m.Word) && !isPM {
+		say(m.Channel, "Usage: "+p+"buy <item> will buy you one <item>. "+
 			p+"buy <item> 3 will buy you 3 of <item>, if you can afford it.")
-	} else if cmd == p+"buy" && hasArgs(word) && !isPM {
-		if argOne == "ohayou" && getUser(lowNick) {
-			say(channel, fmt.Sprintf("You purchased %d ohayous for %d ohayous. "+
-				"You have %d ohayous left.",
-				USER.Ohayous, USER.Ohayous, USER.Ohayous))
-			return
-		}
-		// if a purchase quantity is given
-		if len(word) > 2 {
-			// try to convert it to an integer
-			amt, err := strconv.Atoi(argTwo)
-			if err != nil {
-				say(channel, "You didn't give a valid quantity. Usage: "+p+
-					"buy <item> will buy you one <item>. "+p+"buy <item>"+
-					" 3 will buy you 3 of <item>, if you can afford it.")
+	} else if m.Cmd == p+"buy" && hasArgs(m.Word) && !isPM {
+		user, ok := GetUser(lowNick)
+		if ok {
+			// just for fun
+			if argOne == "ohayou" {
+				say(m.Channel, fmt.Sprintf("You purchased %d ohayous "+
+					"for %d ohayous. You have %d ohayous left.",
+					user.Ohayous, user.Ohayous, user.Ohayous))
+				return
+			}
+			// if a p+urchase quantity is given
+			if len(m.Word) > 2 {
+				// try to convert it to an integer
+				amt, err := strconv.Atoi(argTwo)
+				if err != nil {
+					say(m.Channel, "You didn't give a valid quantity. "+
+						"Usage: "+p+"buy <item> will buy you one "+
+						"<item>. "+p+"buy <item>"+" 3 will buy you "+
+						"3 of <item>, if you can afford it.")
+				} else {
+					say(m.Channel, user.Buy(m.Channel, argOne, amt))
+				}
 			} else {
-				say(channel, buyItem(lowNick, channel, argOne, amt))
+				say(m.Channel, user.Buy(m.Channel, argOne, 1))
 			}
 		} else {
-			say(channel, buyItem(lowNick, channel, argOne, 1))
+			say(m.Channel, "You haven't ohayoued yet! Type "+p+"ohayou to get"+
+				" your first ration.")
 		}
 	}
 
 	// just shows how to use .items and lists item categories
-	if cmd == p+"items" && !hasArgs(word) && !isPM {
-		say(channel, "Type "+p+"items <category> to get a list of items by "+
-			"category. Categories: "+strings.Join(append(itemCats), ", "))
+	if m.Cmd == p+"items" && !hasArgs(m.Word) && !isPM {
+		say(m.Channel, "Type "+p+"items <category> to get a list of items by "+
+			"category. Categories: "+strings.Join(append(itemCtgs), ", ")+".")
 	}
 
 	// PMs all items in a category
-	if cmd == p+"items" && hasArgs(word) {
-		itemsInCat = getCategory(argOne)
-		for _, itm := range itemsInCat {
-			say(nick, itm)
+	if m.Cmd == p+"items" && hasArgs(m.Word) {
+		itemsInCtg := ItemCategory(argOne)
+		for _, itm := range itemsInCtg {
+			say(m.Nick, itm)
 		}
 	}
 
 	// returns information about an item
-	if cmd == p+"item" && hasArgs(word) && !isPM {
-		if getItem(argOne) {
-			if ITEM.Purchase {
-				say(channel, fmt.Sprintf("%s: %s - Price: %d ohayous",
-					ITEM.Name, ITEM.Desc, ITEM.Price))
+	if m.Cmd == p+"item" && hasArgs(m.Word) && !isPM {
+		item, ok := GetItem(argOne)
+		if ok {
+			if item.Purchase {
+				say(m.Channel, fmt.Sprintf("%s: %s - Price: %d ohayous.",
+					item.Name, item.Desc, item.Price))
 			} else {
-				say(channel, fmt.Sprintf("%s: %s. Cannot be purchased.",
-					ITEM.Name, ITEM.Desc))
+				say(m.Channel, fmt.Sprintf("%s: %s. Cannot be purchased.",
+					item.Name, item.Desc))
 			}
 		} else {
-			say(channel, "I don't carry that.")
+			say(m.Channel, "I don't carry that.")
 		}
 	}
 
-	if cmd == p+"use" && !hasArgs(word) && !isPM {
-		say(channel, "Type "+p+"use <item> to use an item. Type "+p+"inventory to "+
-			"see what items you have, or "+p+"items to see what items you can "+
-			p+"buy.")
-	} else if cmd == p+"use" && hasArgs(word) && !isPM {
-		if len(word) > 2 {
-			say(channel, useItem(lowNick, nick, argOne, argTwo))
-		} else {
-			say(channel, useItem(lowNick, nick, argOne, "somebody"))
-		}
-	}
-
-	if cmd == p+"steal" && hasArgs(word) {
-		if getUser(lowNick) {
-			if PutUser(argOne, &stealVictim) {
-				go USER.StealFrom(stealVictim, channel, nick, word[1])
+	if m.Cmd == p+"use" && !hasArgs(m.Word) && !isPM {
+		say(m.Channel, "Type "+p+"use <item> to use an item. Type "+p+
+			"inventory to see what items you have, or "+p+"items to see what "+
+			"items you can "+p+"buy.")
+	} else if m.Cmd == p+"use" && hasArgs(m.Word) && !isPM {
+		user, ok := GetUser(lowNick)
+		if ok {
+			if len(m.Word) > 2 {
+				say(m.Channel, user.Use(m.Nick, argOne, argTwo))
 			} else {
-				say(channel, "You can't steal from "+word[1]+" because "+
-					word[1]+"has never ohayou'd!")
+				say(m.Channel, user.Use(m.Nick, argOne, "somebody"))
 			}
 		} else {
-			say(channel, "You can't do that because you haven't ohayou'd yet! "+
-				"Type "+p+"ohayou to get your first ration.")
+			say(m.Channel, "You don't have any items because you haven't "+
+				"ohayou'd yet! Get your first ration by typing "+p+"ohayou.")
 		}
 	}
 
-	// respond to nick with their items and quantity of each item
-	if cmd == p+"inventory" {
-		inv = "You have: "
-		if !getUser(lowNick) {
-			say(channel, "You haven't ohayoued yet! Type "+p+"ohayou to "+
+	if m.Cmd == p+"steal" && hasArgs(m.Word) {
+		user, ok := GetUser(lowNick)
+		if ok {
+			victim, alsoOk := GetUser(argOne)
+			if alsoOk {
+				go user.StealFrom(victim, m.Channel, m.Nick, m.Word[1])
+			} else {
+				say(m.Channel, "You can't steal from "+m.Word[1]+" because "+
+					m.Word[1]+"has never ohayou'd!")
+			}
+		} else {
+			say(m.Channel, "You can't do that because you haven't ohayou'd "+
+				"yet! Type "+p+"ohayou to get your first ration.")
+		}
+	}
+
+	// respond to m.Nick with their items and quantity of each item
+	if m.Cmd == p+"inventory" {
+		user, ok := GetUser(lowNick)
+		if !ok {
+			say(m.Channel, "You haven't ohayoued yet! Type "+p+"ohayou to "+
 				"get your first ration.")
-		} else if len(USER.Items) > 0 {
-			for itm, amt := range USER.Items {
+		} else if len(user.Items) > 0 {
+			inv := "You have: "
+			for itm, amt := range user.Items {
 				if amt == 0 {
 					continue
 				} else if amt > 1 {
@@ -233,57 +238,58 @@ func Run(bot *irc.Connection, pre, cmd, channel, nick string, chnls, word []stri
 					inv += fmt.Sprintf("%d %s, ", amt, itm)
 				}
 			}
-			say(nick, inv[:len(inv)-2])
+			say(m.Nick, inv[:len(inv)-2])
 		} else {
-			say(nick, "You don't have any items yet. Keep saving!")
+			say(m.Nick, "You don't have any items yet. Keep saving!")
 		}
 	}
 
-	// say top 5 most ohayous at present
-	if cmd == p+"top" && !isPM {
-		getTop()
-		top5 = "Top 5 Ohayouers: "
-		for i := range top {
-			top5 += fmt.Sprintf("%s: %d, ", top[i].Username, top[i].Ohayous)
-		}
-		say(channel, top5[:len(top5)-2])
+	// say top 5 most ohayous at p+resent
+	if m.Cmd == p+"top" && !isPM {
+		say(m.Channel, Top())
 	}
 
-	if cmd == p+"register" {
-		if !hasArgs(word) {
-			say(nick, "Registering allows you to protect your ohayou assets. "+
-				"Your nick must be registered to do so, and it will require "+
-				"you to enter a pin number of your choosing for that command "+
-				"to execute.")
-			say(nick, "Type "+p+"register <pin> to register. The pin must be a "+
-				"four digit number. DON'T USE YOUR REAL BANK PIN THOUGH "+
+	if m.Cmd == p+"register" {
+		if !hasArgs(m.Word) {
+			say(m.Nick, "Registering allows you to protect your ohayou "+
+				"assets. Your nick must be registered to do so, and it will"+
+				"require you to enter a pin number of your choosing for that "+
+				"command to execute.")
+			say(m.Nick, "Type "+p+"register <pin> to register. The pin must "+
+				"be a four digit number. DON'T USE YOUR REAL BANK PIN THOUGH "+
 				"IDIOT. And remember to do it in PM!")
-			say(nick, "Example: "+p+"register 1234")
-		} else if hasArgs(word) && isPM {
-			if len(argOne) != 4 {
-				say(nick, "Your pin must be a four digit number. Example: "+
-					p+"register 1234")
+			say(m.Nick, "Example: "+p+"register 1234")
+		} else if hasArgs(m.Word) && isPM {
+			user, ok := GetUser(lowNick)
+			if !ok {
+				say(m.Nick, "Looks like you haven't ohayou'd yet. Type "+p+
+					"ohayou in a channel I'm in to get your ration, and "+
+					"then you can register.")
+				return
+			} else if len(argOne) != 4 {
+				say(m.Nick, "Your pin must be a four digit number. "+
+					"Example: "+p+"register 1234")
 				return
 			}
 
 			// try to convert it to an integer
-			pin, err = strconv.Atoi(argOne)
+			pin, err := strconv.Atoi(argOne)
 			if err != nil {
-				say(nick, "Your pin must be a four digit number. Example: "+
-					p+"register 1234")
+				say(m.Nick, "Your pin must be a four digit number. "+
+					"Example: "+p+"register 1234")
 			} else {
-				doRegister(lowNick, pin)
+				user.Register(pin, m.Irc)
 			}
 
 		}
 	}
 
-	if isPin(cmd) && isPM {
-		pin, err = strconv.Atoi(cmd)
+	if isPin(m.Cmd) && isPM {
+		pin, err := strconv.Atoi(m.Cmd)
 		if err != nil {
 			return
 		} else {
-			getPin <- SubmitPin{lowNick, pin}
+			sendPin <- SubmitPin{lowNick, pin}
 		}
 	}
 }

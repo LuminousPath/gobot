@@ -5,12 +5,7 @@ import (
 	"math"
 )
 
-var (
-	stealThief        *User
-	stealVictim       *User
-	stealOhayouChance int
-	stealCatChance    int
-
+const (
 	// percent chance of success
 	stealOhayouSuccess = 36
 	stealCatSuccess    = 24
@@ -29,8 +24,9 @@ func (v *User) stealAmount() int {
 }
 
 // t = thief, v = victim
-func (t *User) StealFrom(v *User, channel, nickRaw, vicRaw string) {
-	stealOhayouChance = randNum(0, 100)
+func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string) {
+	stealOhayouChance := randNum(0, 100)
+	var stealCatChance int
 	if v.Items["cat"] == 0 {
 		stealCatChance = 0
 	} else {

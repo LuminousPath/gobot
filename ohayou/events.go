@@ -27,8 +27,8 @@ func startEvents() {
 }
 
 func catEvent() {
-	// 2 - 8 hours random
-	catRand = time.Duration(randNum(7200, 28800))
+	// 2 - 8 hours random (7200, 28800)
+	catRand = time.Duration(randNum(7, 28))
 	catTimer = time.NewTimer(catRand * time.Second)
 	go func() {
 		<-catTimer.C
@@ -44,24 +44,23 @@ func catEvent() {
 
 func waitCatAdopt() {
 	canAdoptCat = true
-	for {
-		select {
-		case user := <-catAdopt:
-			if getUser(user) {
-				for _, c := range chans {
-					say(c, user+" adopts the cat!")
-				}
-				USER.SaveCat()
-			}
-			canAdoptCat = false
-			return
-		case <-time.After(time.Second * 15):
+	select {
+	case r := <-catAdopt:
+		user, ok := GetUser(r)
+		if ok {
 			for _, c := range chans {
-				say(c, "The cat wanders off and disappears...")
+				say(c, user.Username+" adopts the cat!")
 			}
-			canAdoptCat = false
-			return
+			user.SaveCat()
 		}
+		canAdoptCat = false
+		return
+	case <-time.After(time.Second * 15):
+		for _, c := range chans {
+			say(c, "The cat wanders off and disappears...")
+		}
+		canAdoptCat = false
+		return
 	}
 }
 
@@ -70,10 +69,10 @@ func (u *User) SaveCat() {
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save = bson.M{"$inc": bson.M{
+	save := bson.M{"$inc": bson.M{
 		"items.cat": 1}}
 
-	err = q.Update(bson.M{"username": u.Username}, save)
+	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}

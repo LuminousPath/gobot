@@ -10,49 +10,32 @@ import (
 
 	"github.com/davecheney/profile"
 	"github.com/mferrera/go-ircevent"
+	"github.com/mferrera/gobot/common"
 )
 
-type Bot struct {
-	Nick                   string            `json:"nick"`
-	User                   string            `json:"user"`
-	NickPW                 string            `json:"nickPw"`
-	Server                 string            `json:"server"`
-	Port                   int               `json:"port"`
-	Channels               []string          `json:"channels"`
-	FloodProtect           bool              `json:"floodProtect"`
-	FloodDelay             time.Duration     `json:"floodDelay"`
-	Debug                  bool              `json:"debug"`
-	VerboseCallbackHandler bool              `json:"verbose"`
-	Admins                 map[string]string `json:"admins"`
-	CommandPrefix          string            `json:"commandPrefix"`
-	IgnoreList             map[string]string `json:"ignoreList"`
-	DBAddress              string            `json:"dbAddress"`
-	irc                    *irc.Connection
-}
-
-func (bot *Bot) connect() {
+func connect(bot common.Bot) {
 	log.Println("Connecting...")
 
 	// connect
-	bot.irc = irc.IRC(bot.Nick, bot.User)
+	bot.Irc = irc.IRC(bot.Nick, bot.User)
 
-	err := bot.irc.Connect(fmt.Sprintf("%s:%d", bot.Server, bot.Port))
+	err := bot.Irc.Connect(fmt.Sprintf("%s:%d", bot.Server, bot.Port))
 	if err != nil {
 		log.Panic("Error:", err)
 	}
 
-	// set values from conf.json to their irc.Connection equivalent
-	bot.irc.FloodProtect = bot.FloodProtect
-	bot.irc.FloodDelay = bot.FloodDelay
-	bot.irc.Debug = bot.Debug
-	bot.irc.VerboseCallbackHandler = bot.VerboseCallbackHandler
-	bot.IgnoreList[bot.irc.GetNick()] = "Ignore messages from self."
+	// set values from conf.json to their Irc.Connection equivalent
+	bot.Irc.FloodProtect = bot.FloodProtect
+	bot.Irc.FloodDelay = bot.FloodDelay
+	bot.Irc.Debug = bot.Debug
+	bot.Irc.VerboseCallbackHandler = bot.VerboseCallbackHandler
+	bot.IgnoreList[bot.Irc.GetNick()] = "Ignore messages from self."
 
 	// join all channels in config
-	bot.irc.AddCallback("001", func(e *irc.Event) {
+	bot.Irc.AddCallback("001", func(e *irc.Event) {
 		for _, channel := range bot.Channels {
 			log.Println(fmt.Sprintf("Joining %s", channel))
-			bot.irc.Join(channel)
+			bot.Irc.Join(channel)
 		}
 	})
 
@@ -62,14 +45,14 @@ func (bot *Bot) connect() {
 	}
 
 	if bot.NickPW != "" {
-		bot.irc.Privmsg("NickServ", "identify "+bot.NickPW)
+		bot.Irc.Privmsg("NickServ", "identify "+bot.NickPW)
 	}
 
 	// add listener callback
-	bot.listen()
+	listen(bot)
 
 	// stay connected
-	bot.irc.Loop()
+	bot.Irc.Loop()
 }
 
 func init() {
@@ -90,7 +73,7 @@ func main() {
 	}
 	decoder := json.NewDecoder(file)
 
-	bot := Bot{}
+	bot := common.Bot{}
 
 	// decode the json
 	err = decoder.Decode(&bot)
@@ -98,5 +81,5 @@ func main() {
 		log.Fatal("Error: ", err)
 	}
 
-	bot.connect()
+	connect(bot)
 }

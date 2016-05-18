@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -17,45 +16,28 @@ const (
 	itemCol   string = "items"
 )
 
-var (
-	session *mgo.Session
-	USER    *User
-	ITEM    *Item
-)
-
 // returns a user's document as a User{} type
-func getUser(nick string) bool {
+func GetUser(nick string) (User, bool) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	err = q.Find(bson.M{"username": nick}).One(&USER)
+	user := User{}
+
+	err := q.Find(bson.M{"username": nick}).One(&user)
 	if err != nil {
 		log.Println("getUser: " + err.Error())
-		return false
+		return user, false
 	}
-	return true
+	return user, true
 }
 
-func PutUser(nick string, where **User) bool {
+func NewUser(nick string, amt int) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	err = q.Find(bson.M{"username": nick}).One(where)
-	if err != nil {
-		log.Println("PutUser: " + err.Error())
-		return false
-	}
-	return true
-}
-
-func newUser(nick string, amt int) {
-	s := session.Copy()
-	defer s.Close()
-	q := s.DB(dbName).C(ohyCol)
-
-	save = bson.M{
+	save := bson.M{
 		"username":      nick,
 		"last":          time.Now().In(est),
 		"ohayous":       amt,
@@ -65,105 +47,107 @@ func newUser(nick string, amt int) {
 		"items":         bson.M{},
 		"itemMultiply":  bson.M{}}
 
-	err = q.Insert(save)
+	err := q.Insert(save)
 	if err != nil {
 		log.Println("newUser: " + err.Error())
 	}
 }
 
 // saves the new amount of ohayous after a user has ohayou'd
-func (u *User) saveOhayous(amt int) {
+func (u *User) SaveOhayous(amt int) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save = bson.M{"$set": bson.M{
+	save := bson.M{"$set": bson.M{
 		"ohayous":       amt,
 		"last":          time.Now().In(est),
 		"cumOhayous":    u.CumOhayous + amt,
 		"timesOhayoued": u.TimesOhayoued + 1}}
 
-	err = q.Update(bson.M{"username": u.Username}, save)
+	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("saveOhayous: " + err.Error())
 	}
 }
 
 // get all data for item
-func getItem(item string) bool {
+func GetItem(itm string) (Item, bool) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(itemCol)
 
-	err = q.Find(bson.M{"name": item}).One(&ITEM)
+	item := Item{}
+
+	err := q.Find(bson.M{"name": itm}).One(&item)
 	if err != nil {
 		log.Println("getItem: " + err.Error())
-		return false
+		return item, false
 	}
-	return true
+	return item, true
 }
 
 // mostly used for simple incrementation for an item, ie bottle
-func (u *User) saveItem(itm string, amt int) {
-	if getItem(itm) {
-		s := session.Copy()
-		defer s.Close()
-		q := s.DB(dbName).C(ohyCol)
-
-		if ITEM.Multiplies != "" {
-			save = bson.M{"$inc": bson.M{
-				"ohayous":                         -ITEM.Price * amt,
-				"add":                             ITEM.Add * amt,
-				"items." + itm:                    amt,
-				"itemMultiply." + ITEM.Multiplies: ITEM.Multiply}}
-		} else {
-			save = bson.M{"$inc": bson.M{
-				"ohayous":      -ITEM.Price * amt,
-				"add":          ITEM.Add * amt,
-				"items." + itm: amt}}
-		}
-
-		err = q.Update(bson.M{"username": u.Username}, save)
-		if err != nil {
-			log.Println("saveItem: " + err.Error())
-		}
-	}
-}
-
-func (u *User) setLastUsed(item string) {
+func (u *User) SaveItem(item Item, amt int) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save = bson.M{"$set": bson.M{"lastUsed." + item: time.Now().In(est)}}
+	var save bson.M
 
-	err = q.Update(bson.M{"username": u.Username}, save)
+	if item.Multiplies != "" {
+		save = bson.M{"$inc": bson.M{
+			"ohayous":                         -item.Price * amt,
+			"add":                             item.Add * amt,
+			"items." + item.Name:              amt,
+			"itemMultiply." + item.Multiplies: item.Multiply}}
+	} else {
+		save = bson.M{"$inc": bson.M{
+			"ohayous":            -item.Price * amt,
+			"add":                item.Add * amt,
+			"items." + item.Name: amt}}
+	}
+
+	err := q.Update(bson.M{"username": u.Username}, save)
+	if err != nil {
+		log.Println("SaveItem: " + err.Error())
+	}
+}
+
+func (u *User) SetLastUsed(item string) {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	save := bson.M{"$set": bson.M{"lastUsed." + item: time.Now().In(est)}}
+
+	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}
 }
 
 // returns a concatenated string of all categories
-func listCategories() {
+func setCategories() {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(itemCol)
 
-	err = q.Find(nil).Distinct("category", &itemCats)
+	err := q.Find(nil).Distinct("category", &itemCtgs)
 	if err != nil {
-		log.Println("getCategories: " + err.Error())
+		log.Println("setCategories: " + err.Error())
 	}
 }
 
 // returns basic information about all items in a category
-func getCategory(name string) []string {
+func ItemCategory(name string) []string {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(itemCol)
 
 	var result []Item
 
-	err = q.Find(bson.M{"category": name}).Sort("price").All(&result)
+	err := q.Find(bson.M{"category": name}).Sort("price").All(&result)
 	if err != nil {
 		log.Println("getCategory: " + err.Error())
 	}
@@ -171,48 +155,58 @@ func getCategory(name string) []string {
 	items := make([]string, len(result))
 
 	// just get the necessary info
-	for j, item := range result {
-		items[j] = fmt.Sprintf("%s - %d ohayous - %s",
+	for i, item := range result {
+		items[i] = fmt.Sprintf("%s - %d ohayous - %s",
 			item.Name, item.Price, item.Desc)
 	}
+
 	return items
 }
 
-func (u *User) resetLast() {
+func (u *User) ResetLast() {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save = bson.M{"$set": bson.M{"last": 0}}
+	save := bson.M{"$set": bson.M{"last": 0}}
 
-	err = q.Update(bson.M{"username": u.Username}, save)
+	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}
 }
 
-func (u *User) savePin(pn int) {
+func (u *User) SavePin(pin int) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save = bson.M{"$set": bson.M{"pin": pn}}
+	save := bson.M{"$set": bson.M{"pin": pin}}
 
-	err = q.Update(bson.M{"username": u.Username}, save)
+	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}
 }
 
-func getTop() {
+func Top() string {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save = bson.M{"username": 1, "ohayous": 1}
+	var top []UserOhayous
+	var result string
 
-	err = q.Find(nil).Select(save).Sort("-ohayous").Limit(5).Iter().All(&top)
+	query := bson.M{"username": 1, "ohayous": 1}
+
+	err := q.Find(nil).Select(query).Sort("-ohayous").Limit(5).Iter().All(&top)
 	if err != nil {
 		log.Println("saveItem: " + err.Error())
 	}
+
+	for i := range top {
+		result += fmt.Sprintf("%s: %d, ", top[i].Username, top[i].Ohayous)
+	}
+	// trim trailing ", "
+	return result[:len(top)-2]
 }

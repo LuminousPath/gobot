@@ -2,118 +2,136 @@ package main
 
 import (
 	"strings"
+
+	"github.com/mferrera/gobot/common"
 )
 
-func (bot *Bot) adminCommands(p, cmd, nick, channel string, word []string, admin bool) {
-	if !admin {
+func adminCommands(m common.EmitMsg) {
+	if !m.Admin {
 		return
 	}
 
-	say := bot.irc.Privmsg
-	join := bot.irc.Join
-	part := bot.irc.Part
-	notice := bot.irc.Notice
-	action := bot.irc.Action
-	kick := bot.irc.Kick
+	say := m.Irc.Privmsg
+	join := m.Irc.Join
+	part := m.Irc.Part
+	notice := m.Irc.Notice
+	action := m.Irc.Action
+	kick := m.Irc.Kick
+	channels := *m.Channels
 
-	// say #channel hello
-	// say hello -- says into channel where command issued
-	if cmd == p+"say" && hasArgs(word) {
-		if isChannel(word[1]) {
-			say(word[1], strings.Join(word[2:], " "))
+	// say #m.Channel hello
+	// say hello -- says into m.Channel where command issued
+	if m.Cmd == m.P+"say" && hasArgs(m.Word) {
+		if isChannel(m.Word[1]) {
+			say(m.Word[1], strings.Join(m.Word[2:], " "))
 		} else {
-			say(channel, strings.Join(word[1:], " "))
+			say(m.Channel, strings.Join(m.Word[1:], " "))
 		}
 	}
 
 	// pm <user> hello
-	if cmd == p+"pm" && hasArgs(word) {
-		say(word[1], strings.Join(word[1:], " "))
+	if m.Cmd == m.P+"pm" && hasArgs(m.Word) {
+		say(m.Word[1], strings.Join(m.Word[1:], " "))
 	}
 
 	// join #channel
-	if cmd == p+"join" && hasArgs(word) {
-		if isChannel(word[1]) {
-			join(word[1])
+	if m.Cmd == m.P+"join" && hasArgs(m.Word) {
+		if isChannel(m.Word[1]) {
+			join(m.Word[1])
+			*m.Channels = append(*m.Channels, m.Word[1])
 		}
+	}
+
+	if m.Cmd == m.P+"channels" {
+		say(m.Channel, strings.Join(*m.Channels, " "))
 	}
 
 	// part -- parts channel where command issued
 	// part #channel
-	if cmd == p+"part" {
-		if !hasArgs(word) {
-			part(channel)
-		} else if isChannel(word[1]) {
-			part(word[1])
+	if m.Cmd == m.P+"part" {
+		if !hasArgs(m.Word) {
+			part(m.Channel)
+			for i, c := range *m.Channels {
+				if c == m.Channel {
+					*m.Channels = append(channels[:i],
+						channels[i+1:]...)
+				}
+			}
+		} else if isChannel(m.Word[1]) {
+			part(m.Word[1])
+			for i, c := range *m.Channels {
+				if c == m.Word[1] {
+					*m.Channels = append(channels[:i],
+						channels[i+1:]...)
+				}
+			}
 		}
 	}
 
 	// notice <user> hello
 	// notice #channel hello
-	if cmd == p+"notice" && hasArgs(word) {
-		if isChannel(word[1]) {
-			notice(word[1], strings.Join(word[2:], " "))
+	if m.Cmd == m.P+"notice" && hasArgs(m.Word) {
+		if isChannel(m.Word[1]) {
+			notice(m.Word[1], strings.Join(m.Word[2:], " "))
 		} else {
-			notice(word[1], strings.Join(word[2:], " "))
+			notice(m.Word[1], strings.Join(m.Word[2:], " "))
 		}
 	}
 
 	// me hello
 	// me #channel hello
-	if cmd == p+"me" && hasArgs(word) {
-		if !isChannel(word[1]) {
-			action(channel, strings.Join(word[1:], " "))
-		} else if isChannel(word[1]) {
-			action(word[1], strings.Join(word[2:], " "))
+	if m.Cmd == m.P+"me" && hasArgs(m.Word) {
+		if !isChannel(m.Word[1]) {
+			action(m.Channel, strings.Join(m.Word[1:], " "))
+		} else if isChannel(m.Word[1]) {
+			action(m.Word[1], strings.Join(m.Word[2:], " "))
 		}
 	}
 
 	// kick <user> <reason>
-	// kick #channel <user> <reason> -- neither reason is required
-	if cmd == p+"kick" && hasArgs(word) {
-		if !isChannel(word[1]) {
-			kick(word[1], channel, strings.Join(word[2:], " "))
-		} else if isChannel(word[1]) {
-			kick(word[2], word[1], strings.Join(word[3:], " "))
+	// kick #m.Channel <user> <reason> -- neither reason is required
+	if m.Cmd == m.P+"kick" && hasArgs(m.Word) {
+		if !isChannel(m.Word[1]) {
+			kick(m.Word[1], m.Channel, strings.Join(m.Word[2:], " "))
+		} else if isChannel(m.Word[1]) {
+			kick(m.Word[2], m.Word[1], strings.Join(m.Word[3:], " "))
 		}
 	}
 
 	// ignore <user> <reason>
-	if cmd == p+"ignore" {
-		if len(word) == 2 {
-			bot.IgnoreList[word[1]] = "No reason given."
+	if m.Cmd == m.P+"ignore" {
+		if len(m.Word) == 2 {
+			m.IgnoreList[m.Word[1]] = "No reason given."
 
-			say(channel, "Added "+word[1]+" to ignore list. "+
+			say(m.Channel, "Added "+m.Word[1]+" to ignore list. "+
 				"Reason: No reason given.")
-		} else if len(word) > 2 {
-			reason := strings.Join(word[2:], " ")
-			bot.IgnoreList[word[1]] = reason
+		} else if len(m.Word) > 2 {
+			reason := strings.Join(m.Word[2:], " ")
+			m.IgnoreList[m.Word[1]] = reason
 
-			say(channel, "Added "+word[1]+" to ignore list. "+
+			say(m.Channel, "Added "+m.Word[1]+" to ignore list. "+
 				"Reason: "+reason)
 		}
 	}
 
 	// ignorelist
-	if cmd == p+"ignorelist" {
+	if m.Cmd == m.P+"ignorelist" {
 		var iglist string
 
-		for n, r := range bot.IgnoreList {
+		for n, r := range m.IgnoreList {
 			iglist += "[ " + n + ", Reason: " + r + "] "
 		}
 
-		say(nick, iglist)
+		say(m.Nick, iglist)
 	}
 
 	// unignore <user>
-	if cmd == p+"unignore" && hasArgs(word) {
-		if _, ok := bot.IgnoreList[word[1]]; ok {
-			delete(bot.IgnoreList, word[1])
-			say(channel, "Unignored "+word[1]+".")
+	if m.Cmd == m.P+"unignore" && hasArgs(m.Word) {
+		if _, ok := m.IgnoreList[m.Word[1]]; ok {
+			delete(m.IgnoreList, m.Word[1])
+			say(m.Channel, "Unignored "+m.Word[1]+".")
 		} else {
-			say(channel, word[1]+" is not ignored.")
+			say(m.Channel, m.Word[1]+" is not ignored.")
 		}
 	}
-
-	return
 }

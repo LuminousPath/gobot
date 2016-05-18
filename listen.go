@@ -6,10 +6,11 @@ import (
 
 	"github.com/mferrera/go-ircevent"
 	"github.com/mferrera/gobot/catfact"
+	"github.com/mferrera/gobot/common"
 	"github.com/mferrera/gobot/ohayou"
 )
 
-// check if string looks like an irc channel
+// check if string looks like an Irc channel
 func isChannel(s string) bool {
 	return strings.Index(s, "#") == 0
 }
@@ -24,32 +25,31 @@ func hasArgs(a []string) bool {
 
 // acts as event emitter to all plugins
 // for messages at least
-func (bot *Bot) listen() {
-	bot.irc.AddCallback("PRIVMSG", func(e *irc.Event) {
-		// split event.Message to array
+func listen(b common.Bot) {
+	b.Irc.AddCallback("PRIVMSG", func(e *irc.Event) {
+		admin := b.Admins[e.Nick] == e.Host
 		word := strings.Split(e.Message(), " ")
 
-		// the command possibly being issued
-		cmd := word[0]
-
-		// prefix from conf
-		p := bot.CommandPrefix
-		channel := e.Arguments[0]
-		nick := e.Nick
-
-		// true or false if e.Nick@e.Host
-		// is admin@adminhost
-		admin := bot.Admins[e.Nick] == e.Host
+		emit := common.EmitMsg{b.CommandPrefix, // the prefix
+			word[0],        // the command word
+			word,           // the entire message split into slice
+			e.Arguments[0], // the channel (or PM) the message came from
+			&b.Channels,
+			e.Nick, // who typed the message
+			admin,  // if the message was sent by an admin
+			b.Irc,
+			b.Irc.Privmsg,
+			b.IgnoreList}
 
 		// default admin commands
-		go bot.adminCommands(p, cmd, nick, channel, word, admin)
+		go adminCommands(emit)
 
 		// TODO: hostname/wildcard ignores not implemented yet
-		if _, ok := bot.IgnoreList[e.Nick]; ok {
+		if _, ok := b.IgnoreList[e.Nick]; ok {
 			log.Println("Ignored message from", e.Nick)
 		} else {
-			go catfact.Run(bot.irc, p, cmd, channel, word)
-			go ohayou.Run(bot.irc, p, cmd, channel, nick, bot.Channels, word)
+			go catfact.Run(emit)
+			go ohayou.Run(emit)
 		}
 	})
 }

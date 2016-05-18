@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/mferrera/go-ircevent"
+	"github.com/mferrera/gobot/common"
 )
 
 type CatFact struct {
@@ -17,8 +17,8 @@ var (
 	api  string = "http://catfacts-api.appspot.com/api/facts?number=1"
 	cat  CatFact
 	say  func(string, string)
-	err  error
 	resp *http.Response
+	err  error
 )
 
 func fact() string {
@@ -46,12 +46,8 @@ func fact() string {
 	}
 }
 
-func Run(bot *irc.Connection, p, cmd, channel string, word []string) {
-	say = bot.Privmsg
-
-	if word[0] == p+"cat" || word[0] == p+"catfact" {
-		say(channel, fact())
+func Run(m common.EmitMsg) {
+	if m.Word[0] == m.P+"cat" || m.Word[0] == m.P+"catfact" {
+		m.Say(m.Channel, fact())
 	}
-
-	return
 }
