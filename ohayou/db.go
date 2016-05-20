@@ -3,6 +3,7 @@ package ohayou
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
@@ -38,18 +39,27 @@ func NewUser(nick string, amt int) {
 	q := s.DB(dbName).C(ohyCol)
 
 	save := bson.M{
-		"username":      nick,
-		"last":          time.Now().In(est),
-		"ohayous":       amt,
-		"cumOhayous":    amt,
-		"add":           0,
-		"timesOhayoued": 1,
-		"items":         bson.M{},
-		"itemMultiply":  bson.M{}}
+		"username":       nick,
+		"last":           time.Now().In(est),
+		"ohayous":        amt,
+		"cumOhayous":     amt,
+		"stealSuccess":   0,
+		"stealFail":      0,
+		"stolenFrom":     0,
+		"stolenOhayous":  0,
+		"ohayousStolen":  0,
+		"probationCount": 0,
+		"timesOhayoued":  1,
+		"items":          bson.M{},
+		"itemMultiply":   bson.M{},
+		"equipped":       bson.M{},
+		"lastUsed":       bson.M{},
+		"pin":            0,
+		"fortune":        ""}
 
 	err := q.Insert(save)
 	if err != nil {
-		log.Println("newUser: " + err.Error())
+		log.Println("NewUser: " + err.Error())
 	}
 }
 
@@ -67,7 +77,7 @@ func (u *User) SaveOhayous(amt int) {
 
 	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {
-		log.Println("saveOhayous: " + err.Error())
+		log.Println("SaveOhayous: " + err.Error())
 	}
 }
 
@@ -81,7 +91,7 @@ func GetItem(itm string) (Item, bool) {
 
 	err := q.Find(bson.M{"name": itm}).One(&item)
 	if err != nil {
-		log.Println("getItem: " + err.Error())
+		log.Println("GetItem: " + err.Error())
 		return item, false
 	}
 	return item, true
@@ -98,13 +108,11 @@ func (u *User) SaveItem(item Item, amt int) {
 	if item.Multiplies != "" {
 		save = bson.M{"$inc": bson.M{
 			"ohayous":                         -item.Price * amt,
-			"add":                             item.Add * amt,
 			"items." + item.Name:              amt,
 			"itemMultiply." + item.Multiplies: item.Multiply}}
 	} else {
 		save = bson.M{"$inc": bson.M{
 			"ohayous":            -item.Price * amt,
-			"add":                item.Add * amt,
 			"items." + item.Name: amt}}
 	}
 
@@ -208,5 +216,5 @@ func Top() string {
 		result += fmt.Sprintf("%s: %d, ", top[i].Username, top[i].Ohayous)
 	}
 	// trim trailing ", "
-	return result[:len(top)-2]
+	return strings.TrimSuffix(result, ", ")
 }

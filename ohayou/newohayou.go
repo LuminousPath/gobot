@@ -2,6 +2,7 @@ package ohayou
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -48,8 +49,17 @@ func Ohayou(nick string) string {
 		} else {
 			totalOhayous = user.Ohayous + ohayous + itemOhayous
 		}
+
+		if doubleOhayou {
+			var ohayouError int = randNum(13, 21)
+			totalOhayous = int(totalOhayous * (ohayouError / 10))
+		}
 		// store it
 		user.SaveOhayous(totalOhayous)
+		if doubleOhayou {
+			return fmt.Sprintf("ERROR C0045: <%s> <%d> OHAYOUS DISPENSED",
+				strings.ToUpper(nick), totalOhayous)
+		}
 		if itemOhayous == 0 {
 			return fmt.Sprintf("%s ohayou %s!!! %s You have %d ohayous.",
 				adj[randNum(0, 10)], nick, typeResponse, totalOhayous)

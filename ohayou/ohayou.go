@@ -58,6 +58,10 @@ func randNum(min, max int) int {
 	return min + rand.Intn(max-min+1)
 }
 
+func randBigNum(min, max int64) int64 {
+	return min + rand.Int63n(max-min+1)
+}
+
 func isPin(pin string) bool {
 	if len(pin) != 4 {
 		return false
@@ -96,7 +100,7 @@ func Run(m common.EmitMsg) {
 
 	// latest changelog
 	if m.Cmd == p+"changelog" {
-		say(m.Channel, "Latest changelog: http://pastebin.com/LANmT0Ww")
+		say(m.Channel, "Latest changelog: http://pastebin.com/raw/Q8yg0zeR")
 	}
 
 	// displays some help
@@ -157,6 +161,54 @@ func Run(m common.EmitMsg) {
 		}
 	}
 
+	if m.Cmd == p+"equip" {
+		user, ok := GetUser(lowNick)
+		if !ok {
+			say(m.Channel, "You haven't ohayou'd yet! Type "+p+"ohayou to get "+
+				"your first ration.")
+			return
+		}
+		if !hasArgs(m.Word) {
+			if isPM {
+				say(m.Nick, "Type "+p+"equip <item> to equip <item>"+
+					"You can only have one item equipped per slot, "+
+					"unless otherwise noted.")
+			} else {
+				say(m.Channel, "Type "+p+"equip <item> to equip <item>."+
+					"You can only have one item equipped per "+
+					"slot, unless otherwise noted.")
+			}
+		} else {
+			if isPM {
+				say(m.Nick, user.Equip(argOne))
+			} else {
+				say(m.Channel, user.Equip(argOne))
+			}
+		}
+	}
+
+	if m.Cmd == p+"unequip" {
+		user, ok := GetUser(lowNick)
+		if !ok {
+			say(m.Channel, "You haven't ohayou'd yet! Type "+p+"ohayou to get "+
+				"your first ration.")
+			return
+		}
+		if !hasArgs(m.Word) {
+			if isPM {
+				say(m.Nick, "Type "+p+"unequip <item> to unequip <item>")
+			} else {
+				say(m.Channel, "Type "+p+"unequip <item> to unequip <item>")
+			}
+		} else {
+			if isPM {
+				say(m.Nick, user.Unequip(argOne))
+			} else {
+				say(m.Channel, user.Unequip(argOne))
+			}
+		}
+	}
+
 	// just shows how to use .items and lists item categories
 	if m.Cmd == p+"items" && !hasArgs(m.Word) && !isPM {
 		say(m.Channel, "Type "+p+"items <category> to get a list of items by "+
@@ -205,16 +257,32 @@ func Run(m common.EmitMsg) {
 		}
 	}
 
-	if m.Cmd == p+"steal" && hasArgs(m.Word) {
+	if m.Cmd == p+"steal" {
+		if !hasArgs(m.Word) {
+			say(m.Channel, "Attempts to steal from someone. Usage: "+p+
+				"steal <user>. Has penalties if you are caught!")
+		} else {
+			user, ok := GetUser(lowNick)
+			if ok {
+				victim, alsoOk := GetUser(argOne)
+				if alsoOk {
+					go user.StealFrom(victim, m.Channel, m.Nick, m.Word[1])
+				} else {
+					say(m.Channel, "You can't steal from "+m.Word[1]+" "+
+						"because "+m.Word[1]+"has never ohayou'd!")
+				}
+			} else {
+				say(m.Channel, "You can't do that because you haven't "+
+					"ohayou'd yet! Type "+p+"ohayou to get your first "+
+					"ration.")
+			}
+		}
+	}
+
+	if m.Cmd == p+"stats" {
 		user, ok := GetUser(lowNick)
 		if ok {
-			victim, alsoOk := GetUser(argOne)
-			if alsoOk {
-				go user.StealFrom(victim, m.Channel, m.Nick, m.Word[1])
-			} else {
-				say(m.Channel, "You can't steal from "+m.Word[1]+" because "+
-					m.Word[1]+"has never ohayou'd!")
-			}
+			go user.Stats()
 		} else {
 			say(m.Channel, "You can't do that because you haven't ohayou'd "+
 				"yet! Type "+p+"ohayou to get your first ration.")
