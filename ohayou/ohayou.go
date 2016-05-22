@@ -2,6 +2,7 @@ package ohayou
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -100,7 +101,7 @@ func Run(m common.EmitMsg) {
 
 	// latest changelog
 	if m.Cmd == p+"changelog" {
-		say(m.Channel, "Latest changelog: http://pastebin.com/raw/Q8yg0zeR")
+		say(m.Channel, "Latest changelog: http://pastebin.com/raw/b2dh6Prt")
 	}
 
 	// displays some help
@@ -113,17 +114,24 @@ func Run(m common.EmitMsg) {
 
 	// main command to acquire new ohayous
 	if m.Cmd == p+"ohayou" && !hasArgs(m.Word) && !isPM {
-		say(m.Channel, Ohayou(m.Nick))
+		say(m.Channel, Ohayou(lowNick))
 	}
 
-	// respond to m.Channel with how many ohayous X has
-	if m.Cmd == p+"ohayou" && hasArgs(m.Word) && !isPM {
-		user, ok := GetUser(argOne)
+	if m.Cmd == p+"ohayous" {
+		user, ok := GetUser(lowNick)
 		if ok {
-			say(m.Channel, fmt.Sprintf("%s has %d ohayous.",
-				m.Word[1], user.Ohayous))
+			if user.Vault.Installed {
+				say(m.Nick, fmt.Sprintf("You have %d ohayous on hand and %d "+
+					"ohayous in your Level %d vault. Your vault's "+
+					"capacity is %d ohayous.",
+					user.Ohayous, user.Vault.Ohayous, user.Vault.Level+1,
+					int(math.Pow(10, 2+float64(user.Vault.Level)))))
+			} else {
+				say(m.Nick, fmt.Sprintf("You have %d ohayous.", user.Ohayous))
+			}
 		} else {
-			say(m.Channel, argOne+" hasn't ohayoued yet!")
+			say(m.Channel, "You haven't ohayou'd yet! Type "+p+"ohayou "+
+				"to get your first ration.")
 		}
 	}
 
@@ -269,12 +277,62 @@ func Run(m common.EmitMsg) {
 					go user.StealFrom(victim, m.Channel, m.Nick, m.Word[1])
 				} else {
 					say(m.Channel, "You can't steal from "+m.Word[1]+" "+
-						"because "+m.Word[1]+"has never ohayou'd!")
+						"because "+m.Word[1]+" has never ohayou'd!")
 				}
 			} else {
 				say(m.Channel, "You can't do that because you haven't "+
 					"ohayou'd yet! Type "+p+"ohayou to get your first "+
 					"ration.")
+			}
+		}
+	}
+
+	if m.Cmd == p+"deposit" {
+		if !hasArgs(m.Word) {
+			say(m.Channel, "Deposits ohayous to your vault. Usage: "+p+
+				"deposit <num> -- deposits <num> ohayous. Your vault "+
+				"can only be opened once per day due to its security "+
+				"protocol.")
+		} else {
+			user, ok := GetUser(lowNick)
+			if ok {
+				amt, err := strconv.Atoi(argOne)
+				if err != nil {
+					say(m.Channel, "You didn't give a valid quantity. "+
+						"Usage: "+p+"deposit <num> will deposit "+
+						"<num> ohayous to your secured storage.")
+				} else {
+					if isPM {
+						say(m.Nick, user.Deposit(amt))
+					} else {
+						say(m.Channel, user.Deposit(amt))
+					}
+				}
+			}
+		}
+	}
+
+	if m.Cmd == p+"withdraw" {
+		if !hasArgs(m.Word) {
+			say(m.Channel, "Withdraws ohayous from your vault. Usage: "+p+
+				"withdraw <num> -- withdraws <num> ohayous. Your vault "+
+				"can only be opened once per day due to its security "+
+				"protocol.")
+		} else {
+			user, ok := GetUser(lowNick)
+			if ok {
+				amt, err := strconv.Atoi(argOne)
+				if err != nil {
+					say(m.Channel, "You didn't give a valid quantity. "+
+						"Usage: "+p+"withdraw <num> will withdraw "+
+						"<num> ohayous to your secured storage.")
+				} else {
+					if isPM {
+						say(m.Nick, user.Withdraw(amt))
+					} else {
+						say(m.Channel, user.Withdraw(amt))
+					}
+				}
 			}
 		}
 	}
@@ -297,6 +355,11 @@ func Run(m common.EmitMsg) {
 				"get your first ration.")
 		} else if len(user.Items) > 0 {
 			inv := "You have: "
+			if user.Vault.Installed {
+				inv += fmt.Sprintf("a Level %d vault (%d/%d ohayous), ",
+					user.Vault.Level+1, user.Vault.Ohayous,
+					int(math.Pow(10, 2+float64(user.Vault.Level))))
+			}
 			for itm, amt := range user.Items {
 				if amt == 0 {
 					continue
@@ -310,11 +373,6 @@ func Run(m common.EmitMsg) {
 		} else {
 			say(m.Nick, "You don't have any items yet. Keep saving!")
 		}
-	}
-
-	// say top 5 most ohayous at p+resent
-	if m.Cmd == p+"top" && !isPM {
-		say(m.Channel, Top())
 	}
 
 	if m.Cmd == p+"register" {

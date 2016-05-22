@@ -33,6 +33,9 @@ func connect(bot common.Bot) {
 
 	// join all channels in config
 	bot.Irc.AddCallback("001", func(e *irc.Event) {
+		if bot.NickPW != "" {
+			bot.Irc.Privmsg("NickServ", "identify "+bot.NickPW)
+		}
 		for _, channel := range bot.Channels {
 			log.Println(fmt.Sprintf("Joining %s", channel))
 			bot.Irc.Join(channel)
@@ -42,10 +45,6 @@ func connect(bot common.Bot) {
 	// log admins
 	for admin, hostname := range bot.Admins {
 		log.Println(fmt.Sprintf("Admin: %s!*@%s", admin, hostname))
-	}
-
-	if bot.NickPW != "" {
-		bot.Irc.Privmsg("NickServ", "identify "+bot.NickPW)
 	}
 
 	// add listener callback

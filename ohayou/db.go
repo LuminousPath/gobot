@@ -197,6 +197,24 @@ func (u *User) SavePin(pin int) {
 	}
 }
 
+func (u *User) InstallVault() {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	save := bson.M{"$set": bson.M{
+		"vault": bson.M{
+			"installed": true,
+			"level":     0,
+			"ohayous":   0}}}
+
+	err := q.Update(bson.M{"username": u.Username}, save)
+	if err != nil {
+		log.Println("saveItem: " + err.Error())
+	}
+}
+
+// not used now but preserved for other use cases
 func Top() string {
 	s := session.Copy()
 	defer s.Close()

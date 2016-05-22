@@ -42,7 +42,7 @@ func listen(b common.Bot) {
 			b.IgnoreList}
 
 		// default admin commands
-		go adminCommands(emit)
+		go adminCommands(emit, b.NickPW)
 
 		// TODO: hostname/wildcard ignores not implemented yet
 		if _, ok := b.IgnoreList[e.Nick]; ok {

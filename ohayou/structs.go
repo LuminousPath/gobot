@@ -21,6 +21,7 @@ type User struct {
 	LastUsed       map[string]time.Time `bson:"lastUsed"`
 	Pin            int
 	Fortune        string
+	Vault
 }
 
 type Item struct {
@@ -39,6 +40,13 @@ type Item struct {
 	Purchase      bool
 	Category      string
 	EquipCategory string
+}
+
+type Vault struct {
+	Installed bool
+	Level     int
+	Ohayous   int
+	Last      time.Time
 }
 
 type TimeZone struct {

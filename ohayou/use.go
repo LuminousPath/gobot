@@ -28,6 +28,10 @@ func (u *User) Use(nick, itm, on string) string {
 		u.ConsumeItem(item.Name)
 	}
 
+	if item.Name == "vault" && u.Vault.Installed {
+		return ""
+	}
+
 	if item.HasFunction != "" {
 		do := itemFuncs[item.HasFunction]
 		extra = do(u, item.Name)

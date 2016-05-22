@@ -15,7 +15,7 @@ const (
 
 	stealFineMin   int     = 5
 	stealFinePct   float64 = 0.16
-	stealAmountPct float64 = 0.13
+	stealAmountPct float64 = 0.07
 )
 
 func (t *User) stealFine() int {
@@ -52,6 +52,11 @@ func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string) {
 		}
 		stealOhayouChance -= int(defense / 9)
 		stealCatChance -= int(defense / 7)
+	}
+
+	if t.TimesOhayoued < 5 {
+		say(channel, nickRaw+": you haven't ohayou'd enough to do that yet!")
+		return
 	}
 
 	if t.Ohayous < stealFineMin {

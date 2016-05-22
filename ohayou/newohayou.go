@@ -25,14 +25,15 @@ func Ohayou(nick string) string {
 	}
 	// get their data
 	user, ok := GetUser(nick)
-	// dont allow ohayou if they have ohayou'd today
 	if !ok {
+		ohayous = 6
 		NewUser(nick, ohayous)
-		return "Congratulations on your first ohayou " + nick + "!!! " +
-			typeResponse + " Type " + p + "help ohayou if you don't know what " +
+		return "Congratulations on your first ohayou " + nick + "!!! " + "Wow! " +
+			"You get 6 ohayous! Type " + p + "help ohayou if you don't know what " +
 			"this is."
 	} else if user.Last.In(est).Format("20060102") >= time.Now().In(est).Format("20060102") {
-		return "You already got your ohayou ration today, " + nick + "."
+		return "You already got your ohayou ration today, " + nick + ". Try again " +
+			"after midnight EST."
 	} else {
 		itemOhayous, totalOhayous := 0, 0
 		for itm, amt := range user.Items {

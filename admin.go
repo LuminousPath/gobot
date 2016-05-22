@@ -6,7 +6,7 @@ import (
 	"github.com/mferrera/gobot/common"
 )
 
-func adminCommands(m common.EmitMsg) {
+func adminCommands(m common.EmitMsg, nickPw string) {
 	if !m.Admin {
 		return
 	}
@@ -31,7 +31,7 @@ func adminCommands(m common.EmitMsg) {
 
 	// pm <user> hello
 	if m.Cmd == m.P+"pm" && hasArgs(m.Word) {
-		say(m.Word[1], strings.Join(m.Word[1:], " "))
+		say(m.Word[1], strings.Join(m.Word[2:], " "))
 	}
 
 	// join #channel
@@ -40,6 +40,10 @@ func adminCommands(m common.EmitMsg) {
 			join(m.Word[1])
 			*m.Channels = append(*m.Channels, m.Word[1])
 		}
+	}
+
+	if m.Cmd == m.P+"identify" {
+		say("NickServ", "identify "+nickPw)
 	}
 
 	if m.Cmd == m.P+"channels" {

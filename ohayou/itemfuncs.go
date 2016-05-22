@@ -9,7 +9,8 @@ var (
 		"saveBottle":  saveBottle,
 		"dragonDildo": dragonDildo,
 		"adoptCat":    adoptCat,
-		"fortune":     fortune}
+		"fortune":     fortune,
+		"makeVault":   makeVault}
 )
 
 func saveBottle(u *User, itm string) string {
@@ -35,11 +36,15 @@ func adoptCat(u *User, itm string) string {
 }
 
 func fortune(u *User, itm string) string {
-	t := time.Now()
-	if u.LastUsed[itm].In(est).Format("20060102") >= t.In(est).Format("20060102") {
+	if u.LastUsed[itm].In(est).Format("20060102") >= time.Now().In(est).Format("20060102") {
 		return "- here's today's fortune again: " + u.Fortune
 	}
 	go u.SetLastUsed(itm)
 	// see fortune.go -- GetFortune() saves and return fortune
 	return "- " + u.GetFortune()
+}
+
+func makeVault(u *User, itm string) string {
+	go u.InstallVault()
+	return ""
 }
