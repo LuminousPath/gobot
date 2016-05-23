@@ -10,6 +10,12 @@ import (
 )
 
 func (u *User) Deposit(amt int) string {
+	// if nick is registered but not identified
+	if u.Registered && !identified[u.Username] {
+		return u.Username + ": You must be identified with me to do that. Make sure " +
+			"you are identified with the network and then type " + p + "identify."
+	}
+
 	cap := int(math.Pow(10, 2+float64(u.Vault.Level)))
 	if !u.Vault.Installed {
 		return u.Username + ": You don't have a vault yet."
@@ -53,6 +59,12 @@ func (u *User) depositOhayous(amt int) {
 }
 
 func (u *User) Withdraw(amt int) string {
+	// if nick is registered but not identified
+	if u.Registered && !identified[u.Username] {
+		return u.Username + ": You must be identified with me to do that. Make sure " +
+			"you are identified with the network and then type " + p + "identify."
+	}
+
 	if !u.Vault.Installed {
 		return u.Username + ": You don't have a vault yet."
 	}
@@ -62,8 +74,9 @@ func (u *User) Withdraw(amt int) string {
 	}
 
 	if u.Vault.Last.In(est).Format("20060102") >= time.Now().In(est).Format("20060102") {
-		return u.Username + ": You've already opened your vault once today. According" +
-			" to vault security protocol you cannot open it again until tomorrow."
+		return u.Username + ": You've already opened your vault once today. " +
+			"According to vault security protocol you cannot open it again until" +
+			" tomorrow."
 	}
 
 	if (u.Vault.Ohayous - amt) < 0 {

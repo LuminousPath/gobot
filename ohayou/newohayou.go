@@ -34,6 +34,11 @@ func Ohayou(nick string) string {
 	} else if user.Last.In(est).Format("20060102") >= time.Now().In(est).Format("20060102") {
 		return "You already got your ohayou ration today, " + nick + ". Try again " +
 			"after midnight EST."
+		// if nick is registered but not identified
+	} else if user.Registered && !identified[user.Username] {
+		return user.Username + ": You must be identified with me to do that. Make " +
+			"sure you are identified with the network and then type " + p +
+			"identify."
 	} else {
 		itemOhayous, totalOhayous := 0, 0
 		for itm, amt := range user.Items {

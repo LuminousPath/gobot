@@ -5,6 +5,14 @@ import (
 )
 
 func (u *User) Stats() {
+	// if nick is registered but not identified
+	if u.Registered && !identified[u.Username] {
+		say(u.Username, "You must be identified with me to do that. Make sure "+
+			"you are identified with the network and then type "+p+
+			"identify.")
+		return
+	}
+
 	var totalItems int
 	var itemsAddOhayous int
 	var totalItemsCost int

@@ -28,6 +28,14 @@ func (v *User) stealAmount() int {
 
 // t = thief, v = victim
 func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string) {
+	// if nick is registered but not identified
+	if t.Registered && !identified[t.Username] {
+		say(channel, t.Username+": You must be identified with me to do that. Make"+
+			" sure you are identified with the network and then type "+p+
+			"identify.")
+		return
+	}
+
 	// formatted time to the minute
 	if t.Probation.In(est).Format("200601021504") >=
 		time.Now().In(est).Format("200601021504") {

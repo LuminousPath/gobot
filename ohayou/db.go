@@ -184,12 +184,12 @@ func (u *User) ResetLast() {
 	}
 }
 
-func (u *User) SavePin(pin int) {
+func (u *User) SetRegister(reg bool) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
-	save := bson.M{"$set": bson.M{"pin": pin}}
+	save := bson.M{"$set": bson.M{"registered": reg}}
 
 	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {

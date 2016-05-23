@@ -19,7 +19,7 @@ type User struct {
 	ItemMultiply   map[string]int `bson:"itemMultiply"`
 	Equipped       map[string]Item
 	LastUsed       map[string]time.Time `bson:"lastUsed"`
-	Pin            int
+	Registered     bool
 	Fortune        string
 	Vault
 }

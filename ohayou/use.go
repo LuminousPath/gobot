@@ -8,6 +8,12 @@ import (
 )
 
 func (u *User) Use(nick, itm, on string) string {
+	// if nick is registered but not identified
+	if u.Registered && !identified[u.Username] {
+		return u.Username + ": You must be identified with me to do that. Make sure " +
+			"you are identified with the network and then type " + p + "identify."
+	}
+
 	item, ok := GetItem(itm)
 	var extra string
 	// item not found
