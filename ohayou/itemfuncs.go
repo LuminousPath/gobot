@@ -6,11 +6,12 @@ import (
 
 var (
 	itemFuncs = map[string]func(*User, string) string{
-		"saveBottle":  saveBottle,
-		"dragonDildo": dragonDildo,
-		"adoptCat":    adoptCat,
-		"fortune":     fortune,
-		"makeVault":   makeVault}
+		"saveBottle":      saveBottle,
+		"dragonDildo":     dragonDildo,
+		"adoptCat":        adoptCat,
+		"fortune":         fortune,
+		"makeVault":       makeVault,
+		"attemptBreedCat": attemptBreedCat}
 )
 
 func saveBottle(u *User, itm string) string {
@@ -47,4 +48,19 @@ func fortune(u *User, itm string) string {
 func makeVault(u *User, itm string) string {
 	go u.InstallVault()
 	return ""
+}
+
+func attemptBreedCat(u *User, itm string) string {
+	if u.Items["cat"] < 2 {
+		return " but doesn't have any cats to breed! What are you doing! You need " +
+			"at least two cats to do that."
+	}
+
+	if u.LastUsed[itm].In(est).Format("20060102") >= time.Now().In(est).Format("20060102") {
+		return " but none of the cats are in heat."
+	}
+
+	go u.SetLastUsed(itm)
+	go u.breedCat()
+	return " for a few hours."
 }

@@ -2,7 +2,6 @@ package ohayou
 
 import (
 	"math/rand"
-	"strconv"
 	"time"
 
 	"github.com/mferrera/gobot/common"
@@ -56,22 +55,6 @@ func randNum(min, max int) int {
 	return min + rand.Intn(max-min+1)
 }
 
-func randBigNum(min, max int64) int64 {
-	return min + rand.Int63n(max-min+1)
-}
-
-func isPin(pin string) bool {
-	if len(pin) != 4 {
-		return false
-	}
-	_, err := strconv.Atoi(pin)
-	if err != nil {
-		return false
-	} else {
-		return true
-	}
-}
-
 func isPM(m common.EmitMsg) bool {
 	if m.Channel[:1] == "#" {
 		return false
@@ -86,7 +69,7 @@ func Run(m common.EmitMsg) {
 
 	switch m.Cmd {
 	case p + "changelog":
-		say(m.Channel, "Latest changelog: http://pastebin.com/raw/b2dh6Prt")
+		say(m.Channel, "Latest changelog: http://pastebin.com/raw/z7NY7FNm")
 	case p + "help":
 		cmd_help(m)
 	case p + "ohayou":

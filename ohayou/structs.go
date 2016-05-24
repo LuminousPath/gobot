@@ -33,6 +33,7 @@ type Item struct {
 	Multiplies    string
 	Defense       int
 	Limit         int
+	Acrelimit     int
 	Useable       bool
 	Consume       bool
 	Effect        string
@@ -57,9 +58,4 @@ type TimeZone struct {
 type UserOhayous struct {
 	Username string
 	Ohayous  int
-}
-
-type SubmitPin struct {
-	Username string
-	Pin      int
 }

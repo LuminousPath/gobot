@@ -3,6 +3,7 @@ package ohayou
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/mferrera/gobot/common"
@@ -39,14 +40,26 @@ func cmd_inventory(m common.EmitMsg) {
 			int(math.Pow(10, 2+float64(user.Vault.Level))))
 	}
 
-	//TODO: sort the items by amount
-	for itm, amt := range user.Items {
-		if amt == 0 {
-			continue
-		} else if amt > 1 {
-			inv += fmt.Sprintf("%d %ss, ", amt, itm)
-		} else {
-			inv += fmt.Sprintf("%d %s, ", amt, itm)
+	n := map[int][]string{}
+	var a []int
+	for k, v := range user.Items {
+		n[v] = append(n[v], k)
+	}
+	for k := range n {
+		a = append(a, k)
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(a)))
+	for _, amt := range a {
+		for _, itm := range n[amt] {
+			if amt == 0 {
+				continue
+			} else if itm == "vault" {
+				continue
+			} else if amt > 1 {
+				inv += fmt.Sprintf("%d %ss, ", amt, itm)
+			} else {
+				inv += fmt.Sprintf("%d %s, ", amt, itm)
+			}
 		}
 	}
 

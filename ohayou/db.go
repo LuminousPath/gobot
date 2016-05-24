@@ -51,6 +51,7 @@ func NewUser(nick string, amt int) {
 		"probationCount": 0,
 		"timesOhayoued":  1,
 		"items":          bson.M{},
+		"items.acre":     1,
 		"itemMultiply":   bson.M{},
 		"equipped":       bson.M{},
 		"lastUsed":       bson.M{},
@@ -164,8 +165,13 @@ func ItemCategory(name string) []string {
 
 	// just get the necessary info
 	for i, item := range result {
-		items[i] = fmt.Sprintf("%s - %d ohayous - %s",
-			item.Name, item.Price, item.Desc)
+		if item.Acrelimit > 0 {
+			items[i] = fmt.Sprintf("%s: %s - Price: %d ohayous. Limited to %d "+
+				"per acre.", item.Name, item.Desc, item.Price, item.Acrelimit)
+		} else {
+			items[i] = fmt.Sprintf("%s - %d ohayous - %s",
+				item.Name, item.Price, item.Desc)
+		}
 	}
 
 	return items

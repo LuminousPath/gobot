@@ -21,8 +21,7 @@ func cmd_item(m common.EmitMsg) {
 		return
 	}
 
-	argOne := strings.ToLower(m.Word[1])
-	item, ok := GetItem(argOne)
+	item, ok := GetItem(strings.ToLower(m.Word[1]))
 	// if the queried item doesn't
 	if !ok {
 		say(to, "I don't carry that item.")
@@ -32,6 +31,13 @@ func cmd_item(m common.EmitMsg) {
 	// if the item cannot be purchased
 	if !item.Purchase {
 		say(to, fmt.Sprintf("%s: %s. Cannot be purchased.", item.Name, item.Desc))
+		return
+	}
+
+	// if theres a acreage limit, list it
+	if item.Acrelimit > 0 {
+		say(to, fmt.Sprintf("%s: %s - Price: %d ohayous. Limited to %d per acre.",
+			item.Name, item.Desc, item.Price, item.Acrelimit))
 		return
 	}
 
