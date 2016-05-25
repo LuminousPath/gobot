@@ -16,7 +16,7 @@ func (u *User) Deposit(amt int) string {
 			"you are identified with the network and then type " + p + "identify."
 	}
 
-	cap := int(math.Pow(10, 2+float64(u.Vault.Level)))
+	cap := int(math.Pow(10, 3+float64(u.Vault.Level)))
 	if !u.Vault.Installed {
 		return u.Username + ": You don't have a vault yet."
 	}

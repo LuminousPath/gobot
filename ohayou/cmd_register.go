@@ -19,9 +19,9 @@ func cmd_register(m common.EmitMsg) {
 			"you are registered, you will be required to identify with the bot "+
 			"prior to using most of its commands. Changing your nickname will "+
 			"also require you to again identify.")
-		say(m.Nick, "Type "+p+"register yes to register your nickname. Your nickname "+
-			"must be registered with the network for this to work, and you must "+
-			"be identified.")
+		say(m.Nick, "Type '"+p+"register yes' to register your nickname. Your "+
+			"nickname must be registered with the network for this to work, and "+
+			"you must be identified.")
 		say(m.Nick, "To identify with the bot whenever you log on, you must type "+p+
 			"identify")
 		return

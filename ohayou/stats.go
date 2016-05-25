@@ -34,8 +34,14 @@ func (u *User) Stats() {
 		equippedDefense += itm.Defense
 	}
 
-	defenseOhayous := equippedDefense / 9
-	defenseCats := equippedDefense / 7
+	defenseOhayous := int(100 * (1 - float64(stealOhayouSuccess-(equippedDefense/9))/stealOhayouSuccess))
+	defenseCats := int(100 * (1 - float64(stealCatSuccess-(equippedDefense/7))/stealCatSuccess))
+
+	if _, protected := policeProtected[u.Username]; protected {
+		defenseOhayous += int(100 * (float64(policeProtected[u.Username][0]) / float64(stealOhayouSuccess)))
+		defenseCats += int(100 * (float64(policeProtected[u.Username][1]) / float64(stealCatSuccess)))
+		fmt.Println(float64(policeProtected[u.Username][0]) / float64(stealOhayouSuccess))
+	}
 
 	say(u.Username, fmt.Sprintf("You have %d ohayous, having ohayou'd %d times since I "+
 		"started keeping track, for which you've received a %d total ohayous. You've "+

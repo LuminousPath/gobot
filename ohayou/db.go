@@ -50,12 +50,10 @@ func NewUser(nick string, amt int) {
 		"ohayousStolen":  0,
 		"probationCount": 0,
 		"timesOhayoued":  1,
-		"items":          bson.M{},
-		"items.acre":     1,
+		"items":          bson.M{"acre": 1},
 		"itemMultiply":   bson.M{},
 		"equipped":       bson.M{},
 		"lastUsed":       bson.M{},
-		"pin":            0,
 		"fortune":        ""}
 
 	err := q.Insert(save)

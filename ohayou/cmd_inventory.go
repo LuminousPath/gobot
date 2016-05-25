@@ -32,12 +32,12 @@ func cmd_inventory(m common.EmitMsg) {
 		return
 	}
 
-	inv := "You have: "
+	inv := fmt.Sprintf("You have: %d ohayous, ", user.Ohayous)
 	// if user has a vault, make it the first item and show ohayous in it
 	if user.Vault.Installed {
 		inv += fmt.Sprintf("a Level %d vault (%d/%d ohayous), ",
 			user.Vault.Level+1, user.Vault.Ohayous,
-			int(math.Pow(10, 2+float64(user.Vault.Level))))
+			int(math.Pow(10, 3+float64(user.Vault.Level))))
 	}
 
 	n := map[int][]string{}

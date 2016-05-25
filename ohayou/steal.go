@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/mferrera/go-ircevent"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -26,8 +27,18 @@ func (v *User) stealAmount() int {
 	return int(float64(v.Ohayous) * stealAmountPct)
 }
 
+func (v *User) UserDefense() int {
+	var defense int
+	if v.Equipped != nil {
+		for _, name := range v.Equipped {
+			defense += name.Defense
+		}
+	}
+	return defense
+}
+
 // t = thief, v = victim
-func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string) {
+func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string, b *irc.Connection) {
 	// if nick is registered but not identified
 	if t.Registered && !identified[t.Username] {
 		say(channel, t.Username+": You must be identified with me to do that. Make"+
@@ -46,20 +57,21 @@ func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string) {
 		return
 	}
 	stealOhayouChance := randNum(0, 100)
-	defense := 0
 	var stealCatChance int
-	if v.Items["cat"] == 0 {
-		stealCatChance = 0
+	// victim has no cats?
+	if v.Items["cat"] <= 0 {
+		// make it impossible for successful cat steal
+		stealCatChance = 101
 	} else {
 		stealCatChance = randNum(0, 100)
 	}
 
-	if v.Equipped != nil {
-		for _, name := range v.Equipped {
-			defense += name.Defense
-		}
-		stealOhayouChance -= int(defense / 9)
-		stealCatChance -= int(defense / 7)
+	stealOhayouChance -= int(v.UserDefense() / 9)
+	stealCatChance -= int(v.UserDefense() / 7)
+
+	if _, protected := policeProtected[v.Username]; protected {
+		stealOhayouChance -= policeProtected[v.Username][0]
+		stealCatChance -= policeProtected[v.Username][1]
 	}
 
 	if t.TimesOhayoued < 5 {
@@ -97,6 +109,7 @@ func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string) {
 			"%s steals %d ohayous from %s.",
 			nickRaw, vicRaw, nickRaw, v.stealAmount(), vicRaw))
 		SaveSuccessSteal(t, v, 0, v.stealAmount())
+		go v.StationPolice(b)
 		return
 	}
 
@@ -106,6 +119,7 @@ func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string) {
 			"%s steals a cat from %s.",
 			nickRaw, vicRaw, nickRaw, vicRaw))
 		SaveSuccessSteal(t, v, 1, 0)
+		go v.StationPolice(b)
 		return
 	}
 
@@ -115,6 +129,7 @@ func (t *User) StealFrom(v User, channel, nickRaw, vicRaw string) {
 			"%s steals a cat and %d ohayous from %s.",
 			nickRaw, vicRaw, nickRaw, v.stealAmount(), vicRaw))
 		SaveSuccessSteal(t, v, 1, v.stealAmount())
+		go v.StationPolice(b)
 		return
 	}
 }
@@ -137,12 +152,12 @@ func SaveSuccessSteal(t *User, v User, cat, ohy int) {
 
 	err := q.Update(bson.M{"username": t.Username}, saveThief)
 	if err != nil {
-		log.Println("SaveItem: " + err.Error())
+		log.Println("SaveSuccessSteal: " + err.Error())
 	}
 
 	err = q.Update(bson.M{"username": v.Username}, saveVictim)
 	if err != nil {
-		log.Println("SaveItem: " + err.Error())
+		log.Println("SaveSuccessSteal: " + err.Error())
 	}
 }
 
@@ -159,6 +174,6 @@ func (t *User) SaveFailSteal(fine int) {
 
 	err := q.Update(bson.M{"username": t.Username}, save)
 	if err != nil {
-		log.Println("SaveItem: " + err.Error())
+		log.Println("SaveFailSteal: " + err.Error())
 	}
 }

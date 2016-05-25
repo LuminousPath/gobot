@@ -35,5 +35,5 @@ func cmd_steal(m common.EmitMsg) {
 		return
 	}
 
-	go user.StealFrom(victim, m.Channel, m.Nick, m.Word[1])
+	go user.StealFrom(victim, m.Channel, m.Nick, m.Word[1], m.Irc)
 }
