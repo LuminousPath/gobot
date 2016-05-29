@@ -40,7 +40,7 @@ func waitCatAdopt() {
 			for _, c := range chans {
 				say(c, user.Username+" adopts the cat!")
 			}
-			user.SaveCat()
+			user.SaveCat(1)
 		}
 		canAdoptCat = false
 		return
@@ -53,13 +53,13 @@ func waitCatAdopt() {
 	}
 }
 
-func (u *User) SaveCat() {
+func (u *User) SaveCat(amt int) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
 	save := bson.M{"$inc": bson.M{
-		"items.cat": 1}}
+		"items.cat": amt}}
 
 	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {

@@ -33,7 +33,7 @@ func (u *User) Deposit(amt int) string {
 		return u.Username + ": You don't have that many ohayous."
 	}
 
-	if (u.Vault.Ohayous + amt) > (cap - u.Vault.Ohayous) {
+	if (u.Vault.Ohayous + amt) > cap {
 		return u.Username + ": That's more than your vault can hold. Double-check " +
 			"your numbers or purchase an upgrade."
 	}

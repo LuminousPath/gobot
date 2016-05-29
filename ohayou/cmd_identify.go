@@ -59,13 +59,13 @@ func cmd_identify(m common.EmitMsg) {
 
 func watchNicks(b *irc.Connection) {
 	b.AddCallback("NICK", func(e *irc.Event) {
-		if identified[e.Nick] {
-			delete(identified, e.Nick)
+		if identified[strings.ToLower(e.Nick)] {
+			delete(identified, strings.ToLower(e.Nick))
 		}
 	})
 	b.AddCallback("QUIT", func(e *irc.Event) {
-		if identified[e.Nick] {
-			delete(identified, e.Nick)
+		if identified[strings.ToLower(e.Nick)] {
+			delete(identified, strings.ToLower(e.Nick))
 		}
 	})
 }

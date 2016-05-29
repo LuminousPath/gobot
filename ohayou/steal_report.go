@@ -67,11 +67,11 @@ func (u *User) SetPoliceProtection() {
 
 	// remove some protection every hour until it's all gone
 	for _ = range remProtection.C {
-		policeProtected[u.Username][0] -= decOhayouChance
-		policeProtected[u.Username][1] -= decCatChance
+		policeProtected[u.Username][0] -= decOhayouChance + 1
+		policeProtected[u.Username][1] -= decCatChance + 1
 		// if all protection is gone, stop timer and let user know, delete from
 		// map of protected persons
-		if policeProtected[u.Username][0] == 0 {
+		if policeProtected[u.Username][0] <= 0 {
 			say(u.Username, "Ohayou Police here. We're leaving the vicinity now. "+
 				"Good luck.")
 			remProtection.Stop()
@@ -79,4 +79,5 @@ func (u *User) SetPoliceProtection() {
 			break
 		}
 	}
+	return
 }
