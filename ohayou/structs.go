@@ -19,9 +19,11 @@ type User struct {
 	ItemMultiply   map[string]int `bson:"itemMultiply"`
 	Equipped       map[string]Item
 	LastUsed       map[string]time.Time `bson:"lastUsed"`
+	Status         map[string]bool
 	Registered     bool
 	Fortune        string
 	Vault
+	Quarry
 }
 
 type Item struct {
@@ -41,6 +43,7 @@ type Item struct {
 	Purchase      bool
 	Category      string
 	EquipCategory string
+	NeedsAcre     bool `bson:"needsAcre"`
 }
 
 type Vault struct {
@@ -48,6 +51,11 @@ type Vault struct {
 	Level     int
 	Ohayous   int
 	Last      time.Time
+}
+
+type Quarry struct {
+	Installed int
+	Metals    map[string]int
 }
 
 type TimeZone struct {

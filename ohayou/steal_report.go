@@ -14,6 +14,7 @@ func (u *User) StationPolice(b *irc.Connection) {
 		return
 	}
 
+	policeProtected[u.Username] = nil
 	say(u.Username, "Ohayou Police here. Looks like you were just the victim of a "+
 		"robbery. If you report it, we can station one of our officers nearby for a "+
 		"couple of hours. It'll reduce the chance of it happening again. Type "+p+
@@ -39,6 +40,7 @@ func (u *User) StationPolice(b *irc.Connection) {
 		<-responseTimer.C
 		say(u.Username, "Guess you're not interested. Good luck out there.")
 		b.RemoveCallback("PRIVMSG", responseId)
+		delete(policeProtected, u.Username)
 		responseTimer.Stop()
 	}()
 }

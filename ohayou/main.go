@@ -69,7 +69,7 @@ func Run(m common.EmitMsg) {
 
 	switch m.Cmd {
 	case p + "changelog":
-		say(m.Channel, "Latest changelog: http://pastebin.com/raw/iNh2CxLn")
+		say(m.Channel, "Latest changelog: http://pastebin.com/raw/b99DQ0KZ")
 	case p + "help":
 		cmd_help(m)
 	case p + "ohayou":
@@ -100,5 +100,7 @@ func Run(m common.EmitMsg) {
 		cmd_register(m)
 	case p + "identify":
 		cmd_identify(m)
+	case p + "quarry":
+		cmd_quarry(m)
 	}
 }

@@ -10,17 +10,20 @@ func (u *User) breedCat() {
 	aloneTime := time.Duration(randNum(7200, 14400))
 	breedTimer := time.NewTimer(aloneTime * time.Second)
 
+	go u.SetStatus("breeding", true)
+
 	<-breedTimer.C
 
 	if randNum(0, 10) <= 3 {
 		say(u.Username, "Darn! Looks like your cats didn't mate, "+u.Username+
-			". Try again tomorrow!")
+			". Maybe next time!")
 	} else {
-		litter := randNum(2, 7)
+		litter := randNum(2, 7) * u.Items["cattery"]
 		say(u.Username, fmt.Sprintf("Congratulations "+u.Username+"! Your cats "+
 			"successfully mated! Amazingly, the cats were born instantaneously! "+
 			"You receive %d cats.", litter))
 		u.SaveCat(litter)
 	}
 	breedTimer.Stop()
+	u.SetStatus("breeding", false)
 }

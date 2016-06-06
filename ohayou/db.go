@@ -38,6 +38,19 @@ func NewUser(nick string, amt int) {
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
+	mtlList := bson.M{
+		"aluminum": 0,
+		"iron":     0,
+		"titanium": 0,
+		"copper":   0,
+		"lead":     0,
+		"tin":      0,
+		"uranium":  0,
+		"silver":   0,
+		"platinum": 0,
+		"gold":     0,
+	}
+
 	save := bson.M{
 		"username":       nick,
 		"last":           time.Now().In(est),
@@ -54,6 +67,7 @@ func NewUser(nick string, amt int) {
 		"itemMultiply":   bson.M{},
 		"equipped":       bson.M{},
 		"lastUsed":       bson.M{},
+		"quarry":         bson.M{"installed": 0, "metals": mtlList},
 		"fortune":        ""}
 
 	err := q.Insert(save)
@@ -109,6 +123,12 @@ func (u *User) SaveItem(item Item, amt int) {
 			"ohayous":                         -item.Price * amt,
 			"items." + item.Name:              amt,
 			"itemMultiply." + item.Multiplies: item.Multiply}}
+	} else if item.Name == "quarry" {
+		save = bson.M{"$inc": bson.M{
+			"ohayous":            -item.Price * amt,
+			"items." + item.Name: amt,
+			"items.acre":         -amt,
+			"quarry.installed":   amt}}
 	} else {
 		save = bson.M{"$inc": bson.M{
 			"ohayous":            -item.Price * amt,
@@ -121,12 +141,56 @@ func (u *User) SaveItem(item Item, amt int) {
 	}
 }
 
+func (u *User) SaveOil(amt int) {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	save := bson.M{"$inc": bson.M{"items.oilbarrel": amt}}
+
+	err := q.Update(bson.M{"username": u.Username}, save)
+	if err != nil {
+		log.Println("SaveOil: " + err.Error())
+	}
+}
+
+func (u *User) SaveMetals(yield map[string]int) {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	metals := bson.M{}
+	for mtl, amt := range yield {
+		metals["quarry.metals."+mtl] = amt
+	}
+
+	save := bson.M{"$inc": metals}
+
+	err := q.Update(bson.M{"username": u.Username}, save)
+	if err != nil {
+		log.Println("SaveMetals: " + err.Error())
+	}
+}
+
 func (u *User) SetLastUsed(item string) {
 	s := session.Copy()
 	defer s.Close()
 	q := s.DB(dbName).C(ohyCol)
 
 	save := bson.M{"$set": bson.M{"lastUsed." + item: time.Now().In(est)}}
+
+	err := q.Update(bson.M{"username": u.Username}, save)
+	if err != nil {
+		log.Println("saveItem: " + err.Error())
+	}
+}
+
+func (u *User) SetStatus(action string, status bool) {
+	s := session.Copy()
+	defer s.Close()
+	q := s.DB(dbName).C(ohyCol)
+
+	save := bson.M{"$set": bson.M{"status." + action: status}}
 
 	err := q.Update(bson.M{"username": u.Username}, save)
 	if err != nil {

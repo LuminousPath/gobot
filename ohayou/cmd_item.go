@@ -34,13 +34,26 @@ func cmd_item(m common.EmitMsg) {
 		return
 	}
 
+	itemInfo := fmt.Sprintf("%s: %s - Price: %d ohayous.",
+		item.Name, item.Desc, item.Price)
+
+	if item.Consume {
+		itemInfo += " Consumed when used."
+	}
+
+	if item.Defense > 0 {
+		itemInfo += fmt.Sprintf(" Adds %d defense.", item.Defense)
+	}
+
+	if item.Limit > 0 {
+		itemInfo += fmt.Sprintf(" Limited to %d.", item.Limit)
+	}
+
 	// if theres a acreage limit, list it
 	if item.Acrelimit > 0 {
-		say(to, fmt.Sprintf("%s: %s - Price: %d ohayous. Limited to %d per acre.",
-			item.Name, item.Desc, item.Price, item.Acrelimit))
-		return
+		itemInfo += fmt.Sprintf(" Limited to %d per acre.", item.Acrelimit)
 	}
 
 	// say information about the item
-	say(to, fmt.Sprintf("%s: %s - Price: %d ohayous.", item.Name, item.Desc, item.Price))
+	say(to, itemInfo)
 }

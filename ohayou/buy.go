@@ -16,6 +16,10 @@ func (u *User) Buy(channel, itm string, amt int) string {
 		return "That's not for sale."
 	}
 
+	if amt <= 0 {
+		return "That's not a valid quantity."
+	}
+
 	if u.Ohayous < item.Price*amt {
 		return "You can't afford that."
 	}
@@ -42,6 +46,11 @@ func (u *User) Buy(channel, itm string, amt int) string {
 	if u.Registered && !identified[u.Username] {
 		return u.Username + ": You must be identified with me to do that. Make sure " +
 			"you are identified with the network and then type " + p + "identify."
+	}
+
+	if item.NeedsAcre && !u.FreeAcre(amt) {
+		return u.Username + ": That item requires its own acre, and you do not have " +
+			"an empty acre."
 	}
 
 	u.SaveItem(item, amt)

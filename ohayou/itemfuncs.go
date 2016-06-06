@@ -11,7 +11,9 @@ var (
 		"adoptCat":        adoptCat,
 		"fortune":         fortune,
 		"makeVault":       makeVault,
-		"attemptBreedCat": attemptBreedCat}
+		"attemptBreedCat": attemptBreedCat,
+		"startMining":     startMining,
+		"startPumping":    startPumping}
 )
 
 func saveBottle(u *User, itm string) string {
@@ -56,11 +58,28 @@ func attemptBreedCat(u *User, itm string) string {
 			"at least two cats to do that."
 	}
 
-	if u.LastUsed[itm].In(est).Format("20060102") >= time.Now().In(est).Format("20060102") {
-		return " but none of the cats are in heat."
+	if u.Status["breeding"] {
+		return " but already has cats in there! You must wait until they are finished."
 	}
 
-	go u.SetLastUsed(itm)
 	go u.breedCat()
+	return " for a few hours."
+}
+
+func startMining(u *User, itm string) string {
+	if u.Status["mining"] {
+		return " but is already mining! Wait until it's finished and try again."
+	}
+
+	go u.Mine()
+	return " for a few hours."
+}
+
+func startPumping(u *User, itm string) string {
+	if u.Status["pumping"] {
+		return " but is already pumping oil! Wait until it's finished and try again."
+	}
+
+	go u.PumpOil()
 	return " for a few hours."
 }
